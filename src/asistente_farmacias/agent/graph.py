@@ -51,7 +51,7 @@ if _LANGFUSE_ACTIVO:
         _langfuse_client = get_client()
         if _langfuse_client.auth_check():
             _langfuse_handler = CallbackHandler()
-            print(f"✅ Langfuse activo → {os.getenv('LANGFUSE_HOST')}")
+            print(f"✅ Langfuse activo → {os.getenv('LANGFUSE_BASE_URL')}")
         else:
             print("⚠️  Las claves de Langfuse no pasaron auth_check() — continuando sin trazas.")
     except Exception as e:

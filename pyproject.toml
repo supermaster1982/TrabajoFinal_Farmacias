@@ -16,7 +16,7 @@ langchain-openai = "^0.2.0"
 python-dotenv = "^1.0.1"
 pydantic = "^2.9.0"
 requests = "^2.32.0"
-langfuse = "^2.53.0"
+langfuse = "^3.0.0"
 langchain = "^0.3.0"
 
 [tool.poetry.group.dev.dependencies]
