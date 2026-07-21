@@ -36,9 +36,32 @@ from asistente_farmacias.tools.tool_minsal import (
 from asistente_farmacias.tools.tool_rag import buscar_ficha_medicamento
 from asistente_farmacias.guardrails.basic import SYSTEM_PROMPT_GUARDRAIL
 
-# gpt-4o-mini está en retiro. El modelo vigente equivalente es
-# gpt-5.4-mini (la misma familia que ya usaste en la tarea de conducción).
+# --- Observabilidad con Langfuse Cloud (opcional y degradante) --------------
+# Si LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY no están en el .env, el agente
+# sigue funcionando exactamente igual, solo que sin trazas.
+_LANGFUSE_ACTIVO = bool(os.getenv("LANGFUSE_PUBLIC_KEY")) and bool(os.getenv("LANGFUSE_SECRET_KEY"))
+_langfuse_handler = None
+_langfuse_client = None
 
+if _LANGFUSE_ACTIVO:
+    try:
+        from langfuse import get_client
+        from langfuse.langchain import CallbackHandler
+
+        _langfuse_client = get_client()
+        if _langfuse_client.auth_check():
+            _langfuse_handler = CallbackHandler()
+            print(f"✅ Langfuse activo → {os.getenv('LANGFUSE_HOST')}")
+        else:
+            print("⚠️  Las claves de Langfuse no pasaron auth_check() — continuando sin trazas.")
+    except Exception as e:
+        print(f"⚠️  No se pudo inicializar Langfuse: {e!r} — continuando sin trazas.")
+else:
+    print("ℹ️  Sin claves de Langfuse en .env — continuando sin trazas.")
+
+# gpt-4o-mini está en retiro y "gpt-5o-mini" no existe (el sufijo "-o" es
+# exclusivo de la familia GPT-4o). El modelo vigente equivalente es
+# gpt-5.4-mini (la misma familia que ya usaste en la tarea de conducción).
 GEN_MODEL = os.getenv("GEN_MODEL", "gpt-5.4-mini")
 
 SYSTEM_PROMPT = (
@@ -73,7 +96,14 @@ def responder(user_id: str, pregunta: str) -> str:
     reinyecta automáticamente en cada llamada nueva.
     """
     config = {"configurable": {"thread_id": user_id}}
+    if _langfuse_handler:
+        config["callbacks"] = [_langfuse_handler]
+
     resultado = _agent.invoke(
         {"messages": [{"role": "user", "content": pregunta}]}, config=config
     )
+
+    if _LANGFUSE_ACTIVO and _langfuse_client:
+        _langfuse_client.flush()  # fuerza el envío inmediato de la traza
+
     return resultado["messages"][-1].content
