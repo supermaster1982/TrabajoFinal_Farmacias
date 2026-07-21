@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Qué construir · Trabajo Final — Módulo 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/styles.css" />
+<link rel="stylesheet" href="assets/trabajo-final.css" />
+</head>
+<body class="bg-grid">
+<div class="deck-progress" role="progressbar" aria-label="Progreso del deck" aria-valuemin="1" aria-valuemax="18" aria-valuenow="6"></div>
+<header class="deck-top">
+  <a class="brand" href="index.html">FEN · UEjecutivos · <b>Trabajo Final</b></a>
+  <span class="nav-right"><a class="to-hub" href="index.html"><span class="ic">☰</span> Índice</a><span class="step-name">Sistema · 1/3</span><span class="count" aria-live="polite">6 / 18</span></span>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Paso 2 · Arquitectura · selecciona una pieza</span>
+      <h1 class="reveal">Un sistema, cuatro responsabilidades</h1>
+      <p class="lead reveal mt-m">La arquitectura separa canal, API, orquestación, herramientas, estado y controles. Esa separación debe verse en el código y en la explicación.</p>
+      <div class="visual-shell mt-m reveal">
+        <div class="architecture-diagram" id="archMap" aria-label="Arquitectura de referencia interactiva">
+          <div class="arch-stage">
+            <button class="arch-node" type="button" data-k="front" aria-pressed="false">Front conversacional<span class="sub">canal · chat UI</span></button>
+            <button class="arch-node" type="button" data-k="api" aria-pressed="false">FastAPI / LangServe<span class="sub">contrato HTTP</span></button>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">→</div>
+          <button class="arch-node arch-agent" type="button" data-k="agent" aria-pressed="true"><b>LangGraph</b><span>routing + estado</span></button>
+          <div class="arch-arrow" aria-hidden="true">→</div>
+          <div class="arch-tools">
+            <button class="arch-node" type="button" data-k="minsal" aria-pressed="false">Tool MINSAL<span class="sub">turnos en vivo</span></button>
+            <button class="arch-node" type="button" data-k="rag" aria-pressed="false">Tool RAG<span class="sub">vademécum citado</span></button>
+          </div>
+          <div class="arch-band">
+            <button class="arch-node arch-state" type="button" data-k="mem" aria-pressed="false">Estado · historial por <code>user_id</code></button>
+            <button class="arch-node arch-control" type="button" data-k="guard" aria-pressed="false">Control transversal · validación + derivación</button>
+          </div>
+        </div>
+        <div class="arch-detail console" id="archDetail" aria-live="polite">
+          <div class="c-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="tag" id="archTag">orquestación · LangGraph</span></div>
+          <p class="flow-chat no-margin" id="archText"></p>
+          <span class="sample-badge mt-m" id="archRub">Punto 2</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Stack obligatorio</span>
+      <h2 class="reveal">Cada pieza deja una evidencia</h2>
+      <p class="lead reveal mt-m">No basta nombrar tecnologías: deben mostrar la conducta que cada una habilita.</p>
+      <div class="table-wrap reveal mt-m">
+        <table class="t-clean">
+          <caption class="sr-only">Stack obligatorio, evidencia esperada y criterio de la rúbrica</caption>
+          <thead><tr><th scope="col">Pieza</th><th scope="col">Conducta observable</th><th scope="col">Evidencia mínima</th><th scope="col">Punto</th></tr></thead>
+          <tbody>
+            <tr><td class="hi">LangGraph</td><td>Routing real entre herramientas y estado</td><td>Grafo o agente + explicación de decisiones</td><td>2</td></tr>
+            <tr><td class="hi">Historial</td><td>Dos turnos dependientes por <code>user_id</code></td><td>Checkpointer, store o BD en la app</td><td>2 / 6</td></tr>
+            <tr><td class="hi">RAG semántico</td><td>Retrieval por embeddings, no filtro de texto</td><td>Vector store + ficha citada</td><td>3</td></tr>
+            <tr><td class="hi">MINSAL en vivo</td><td>Consulta turnos al responder</td><td>Tool + timeout + error digno</td><td>4</td></tr>
+            <tr><td class="hi">Guardrails</td><td>Rechaza tratamiento y deriva</td><td>Control activo + pruebas adversarias</td><td>5</td></tr>
+            <tr><td class="hi">API + front + cloud</td><td><code>POST {user_id, pregunta}</code> disponible</td><td>URL desplegada y front que la consume</td><td>6</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="compact-note reveal mt-m"><strong>API:</strong> FastAPI es la ruta recomendada. LangServe sigue aceptado según el programa original. El despliegue debe estar en un entorno cloud; <code>localhost</code> no acredita deploy.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Prueba de fuego · explora los tres flujos</span>
+      <h2 class="reveal">La demo prueba decisiones, no prompts sueltos</h2>
+      <p class="lead reveal mt-m">Estos flujos validan el núcleo funcional. La evidencia escrita y operativa completa la entrega.</p>
+      <div class="visual-shell mt-m reveal">
+        <div class="flow-tabs" role="group" aria-label="Flujos esperados">
+          <button type="button" data-flow-tab="turnos" aria-pressed="true">1 · Turnos + historial</button>
+          <button type="button" data-flow-tab="rag" aria-pressed="false">2 · RAG + fuente</button>
+          <button type="button" data-flow-tab="safety" aria-pressed="false">3 · Rechazo + derivación</button>
+        </div>
+        <div class="console flow-detail" aria-live="polite">
+          <div class="c-head"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="tag" id="flowTitle">Farmacias de turno + historial</span></div>
+          <pre class="flow-chat no-margin" id="flowText"></pre>
+          <p class="foot-note" id="flowNote">Valida datos en vivo + 2 turnos dependientes.</p>
+        </div>
+      </div>
+      <div class="foot reveal"><a class="btn ghost" href="01-caso-de-negocio.html">← Caso</a><a class="btn primary" href="03-entregables-y-demo.html">Entregables y demo →</a></div>
+    </div>
+  </section>
+</main>
+
+<nav class="deck-controls" aria-label="Navegación del deck"><button type="button" data-deck-prev aria-label="Panel anterior">←</button><span class="control-label">navegar</span><button type="button" data-deck-next aria-label="Panel siguiente">→</button></nav>
+<script src="assets/trabajo-final.js"></script>
+</body>
+</html>

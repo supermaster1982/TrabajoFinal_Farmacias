@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rúbrica · Trabajo Final — Módulo 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/styles.css" />
+<link rel="stylesheet" href="assets/trabajo-final.css" />
+</head>
+<body class="bg-grid">
+<div class="deck-progress" role="progressbar" aria-label="Progreso del deck" aria-valuemin="1" aria-valuemax="18" aria-valuenow="12"></div>
+<header class="deck-top">
+  <a class="brand" href="index.html">FEN · UEjecutivos · <b>Trabajo Final</b></a>
+  <span class="nav-right"><a class="to-hub" href="index.html"><span class="ic">☰</span> Índice</a><span class="step-name">Rúbrica · 1/4</span><span class="count" aria-live="polite">12 / 18</span></span>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Paso 4 · Puntaje técnico del proyecto</span>
+      <h1 class="reveal">Siete criterios observables</h1>
+      <p class="lead reveal mt-m">Cada punto exige conducta y evidencia. La conversión a la nota final la realiza el equipo docente.</p>
+      <div class="rubric-grid mt-m reveal" aria-label="Siete criterios de la rúbrica">
+        <article class="rubric-item"><span class="n">01 · 1 punto</span><h3>Caso y diseño</h3><p>Problema, necesidad, datos, decisiones, alternativas y trade-offs justificados.</p></article>
+        <article class="rubric-item"><span class="n">02 · 1 punto</span><h3>LangGraph + historial</h3><p>Grafo con routing y estado; memoria multi-turno por <code>user_id</code>.</p></article>
+        <article class="rubric-item"><span class="n">03 · 1 punto</span><h3>RAG semántico</h3><p>Embeddings + vector store; respuesta basada en retrieval y ficha citada.</p></article>
+        <article class="rubric-item"><span class="n">04 · 1 punto</span><h3>MINSAL en vivo</h3><p>Tool usa turnos reales y maneja timeout, latencia o caída.</p></article>
+        <article class="rubric-item"><span class="n">05 · 1 punto</span><h3>Seguridad, privacidad y calidad</h3><p>Guardrail probado, informe completo y matriz de riesgos accionable.</p></article>
+        <article class="rubric-item"><span class="n">06 · 1 punto</span><h3>API + front + cloud</h3><p>Contrato con historial, UI que consume la API y URL desplegada.</p></article>
+        <article class="rubric-item"><span class="n">07 · 1 punto</span><h3>End-to-end + demo</h3><p>Tres flujos estables y cualquier integrante explica el sistema.</p></article>
+      </div>
+      <p class="compact-note reveal mt-m">Fuente de verdad: <a href="../../../../data/tareas-m04/eval-prompt-trabajo-final.md">rúbrica canónica y formato de evaluación</a>.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Trazabilidad + autoevaluación</span>
+      <h2 class="reveal">Tres pilares se convierten en evidencia</h2>
+      <div class="evidence-map mt-m reveal" aria-label="Mapa entre pilares originales y criterios medibles">
+        <article class="evidence-pillar"><h3>Caso de negocio</h3><ul><li><b>1</b> Problema y diseño justificado</li></ul></article>
+        <article class="evidence-pillar"><h3>Funcionamiento y operación</h3><ul><li><b>5</b> Seguridad, privacidad y calidad</li><li><b>7</b> Estabilidad end-to-end y demo</li></ul></article>
+        <article class="evidence-pillar"><h3>Herramientas obligatorias</h3><ul><li><b>2</b> LangGraph + historial</li><li><b>3</b> RAG semántico</li><li><b>4</b> Datos externos en vivo</li><li><b>6</b> API + front + cloud</li></ul></article>
+      </div>
+      <div class="check-panel mt-m reveal" id="rubricSelf" data-persist-group="rubric-self">
+        <div class="check-head"><span class="ti">Marca sólo evidencia ya demostrable</span><span class="check-score"><span class="num" id="rubricNum" aria-live="polite">0</span> / 7</span></div>
+        <div class="check-grid">
+          <label class="check-item"><input type="checkbox" /><span>1 · Caso y diseño</span></label><label class="check-item"><input type="checkbox" /><span>2 · LangGraph + historial</span></label>
+          <label class="check-item"><input type="checkbox" /><span>3 · RAG con fuentes</span></label><label class="check-item"><input type="checkbox" /><span>4 · MINSAL en vivo</span></label>
+          <label class="check-item"><input type="checkbox" /><span>5 · Seguridad + informe + matriz</span></label><label class="check-item"><input type="checkbox" /><span>6 · API + front + cloud</span></label>
+          <label class="check-item"><input type="checkbox" /><span>7 · End-to-end + demo</span></label>
+        </div>
+        <p class="status-line" id="rubricMsg" aria-live="polite">0 de 7 — faltan evidencias por preparar.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Criterio 5 · condición dura</span>
+      <h2 class="reveal">Derivar no es negarse a secas</h2>
+      <p class="lead reveal mt-m">El guardrail útil protege y ofrece el siguiente paso permitido.</p>
+      <div class="duo mt-m reveal">
+        <div class="box good">
+          <h3 class="navy">Respuesta segura</h3>
+          <p class="compact-note">“No puedo recomendarte un medicamento ni una dosis; eso requiere evaluación profesional. Sí puedo ayudarte a encontrar una farmacia de turno o explicar una ficha que ya te hayan indicado.”</p>
+          <div class="it mt-m"><span class="mk">✓</span><span>Rechaza recomendación y dosis</span></div>
+          <div class="it"><span class="mk">✓</span><span>Deriva a un profesional de salud</span></div>
+          <div class="it"><span class="mk">✓</span><span>Ofrece una acción permitida y útil</span></div>
+        </div>
+        <div class="box warn">
+          <h3 class="navy">Respuesta insegura</h3>
+          <p class="compact-note">“Para el dolor de cabeza toma ibuprofeno 400 mg cada 8 horas; si persiste, aumenta la dosis.”</p>
+          <div class="it mt-m"><span class="mk">✕</span><span>Diagnostica de facto y recomienda dosis</span></div>
+          <div class="it"><span class="mk">✕</span><span>Sin evaluación profesional ni derivación</span></div>
+          <div class="it"><span class="mk">✕</span><span>El punto 5 no se otorga</span></div>
+        </div>
+      </div>
+      <p class="scope-note reveal mt-m"><strong>Regla dura</strong><span>El bonus puede compensar puntaje faltante dentro del tope 7, pero no cambia el estado del criterio 5: si recomienda medicamentos o dosis, ese criterio queda no logrado.</span></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Riesgo accionable + bonus</span>
+      <h2 class="reveal">Mitigación significa quién hace qué</h2>
+      <div class="table-wrap mt-m reveal">
+        <table class="t-clean">
+          <caption class="sr-only">Ejemplos de riesgos, probabilidad, impacto, mitigación y dueño</caption>
+          <thead><tr><th scope="col">Riesgo</th><th scope="col">Prob.</th><th scope="col">Impacto</th><th scope="col">Mitigación verificable</th><th scope="col">Dueño</th></tr></thead>
+          <tbody>
+            <tr><td>El asistente inventa una dosis</td><td>Media</td><td>Crítico</td><td>Guardrail entrada/salida + RAG citado + 20 pruebas adversarias en CI</td><td>Backend</td></tr>
+            <tr><td>API MINSAL no responde</td><td>Media</td><td>Alto</td><td>Timeout 5 s + cache 15 min + fallback rotulado + mensaje digno</td><td>Backend</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cols-2 top mt-m reveal">
+        <div><h3 class="navy">Bonus dentro del tope 7</h3><p class="compact-note mt-m">Observabilidad/evals, red teaming, seguridad extra, streaming, cache/resiliencia, UI pulida o más fuentes públicas. Debe existir evidencia, no sólo una mención.</p></div>
+        <div><h3 class="navy">Ejemplo débil</h3><p class="compact-note mt-m">“La IA puede equivocarse; mitigación: tener cuidado.” Falta probabilidad, impacto, control verificable y dueño.</p></div>
+      </div>
+      <div class="foot reveal"><a class="btn ghost" href="03-entregables-y-demo.html">← Entregables</a><a class="btn primary" href="05-recursos-y-datos.html">Recursos y datos →</a></div>
+    </div>
+  </section>
+</main>
+
+<nav class="deck-controls" aria-label="Navegación del deck"><button type="button" data-deck-prev aria-label="Panel anterior">←</button><span class="control-label">navegar</span><button type="button" data-deck-next aria-label="Panel siguiente">→</button></nav>
+<script src="assets/trabajo-final.js"></script>
+</body>
+</html>

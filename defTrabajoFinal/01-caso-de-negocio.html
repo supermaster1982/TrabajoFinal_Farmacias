@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Caso de negocio · Trabajo Final — Módulo 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/styles.css" />
+<link rel="stylesheet" href="assets/trabajo-final.css" />
+</head>
+<body class="bg-grid">
+<div class="deck-progress" role="progressbar" aria-label="Progreso del deck" aria-valuemin="1" aria-valuemax="18" aria-valuenow="3"></div>
+<header class="deck-top">
+  <a class="brand" href="index.html">FEN · UEjecutivos · <b>Trabajo Final</b></a>
+  <span class="nav-right"><a class="to-hub" href="index.html"><span class="ic">☰</span> Índice</a><span class="step-name">Caso · 1/3</span><span class="count" aria-live="polite">3 / 18</span></span>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Paso 1 · La necesidad</span>
+      <h1 class="reveal">Una emergencia de información</h1>
+      <div class="cols-2 top mt-m reveal">
+        <div class="stack-sm">
+          <p class="lead">Fuera del horario hábil, una persona necesita saber <span class="accent">qué farmacia está abierta</span> y entender una ficha de medicamento que ya tiene indicada.</p>
+          <p>La solución conecta una fuente estructurada que cambia a diario —la API de farmacias del MINSAL— con una fuente documental para RAG —un vademécum— mediante una interfaz conversacional.</p>
+        </div>
+        <div class="visual-shell">
+          <div class="section-kicker">Contrato de confianza</div>
+          <h3 class="navy">El asistente informa; no trata</h3>
+          <ul class="blist mt-m">
+            <li><b>Sí:</b> locales de turno, dirección y horario.</li>
+            <li><b>Sí:</b> información general citada desde una ficha.</li>
+            <li><b>No:</b> stock, precio o disponibilidad del medicamento.</li>
+            <li><b>No:</b> diagnóstico o prescripción; no recomienda medicamentos ni dosis.</li>
+          </ul>
+          <p class="scope-note mt-m"><strong>Frontera clínica</strong><span>El asistente no recomienda medicamentos ni dosis; rechaza y deriva a profesionales de salud. Tampoco diagnostica ni prescribe.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Viaje del usuario</span>
+      <h2 class="reveal">Cuatro momentos, una respuesta segura</h2>
+      <p class="lead reveal mt-m">El producto une dos fuentes y termina siempre en una acción verificable.</p>
+      <div class="journey-diagram reveal" aria-label="Viaje del usuario desde una emergencia hasta una respuesta segura">
+        <article class="journey-step"><span class="num">01 · contexto</span><h3>Necesita orientación</h3><p>Busca una farmacia abierta o una explicación general de una ficha.</p></article>
+        <article class="journey-step"><span class="num">02 · turno</span><h3>Consulta MINSAL</h3><p>La app filtra registros vigentes por comuna y devuelve local, dirección y horario.</p></article>
+        <article class="journey-step"><span class="num">03 · ficha</span><h3>Recupera evidencia</h3><p>El RAG busca en el vademécum y cita el medicamento o registro recuperado.</p></article>
+        <article class="journey-step safe"><span class="num">04 · guardrail</span><h3>Ayuda sin recomendar</h3><p>Si piden tratamiento o dosis, rechaza, deriva y ofrece información permitida.</p></article>
+      </div>
+      <p class="compact-note reveal mt-m">Los tres flujos validan el <strong>núcleo funcional</strong>; deploy, resiliencia, informe y matriz completan la entrega.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Farmacias es un ejemplo</span>
+      <h2 class="reveal">Pueden construir su propio proyecto</h2>
+      <div class="cols-2 top mt-m reveal">
+        <div class="stack-sm">
+          <p>Farmacias es un ejemplo del tipo de proyecto que buscamos. Pueden elegir un proyecto personal u otro problema relevante.</p>
+          <p>Será aceptado si demuestra capacidades equivalentes: <strong>dos fuentes de datos complementarias</strong>, búsqueda o recuperación con evidencia, orquestación e historial, controles de seguridad, API, interfaz y despliegue. El tema y la tecnología pueden adaptarse; se evalúa con la misma rúbrica y los mismos entregables.</p>
+          <p class="compact-note"><strong>Recomendación, no requisito:</strong> compartan temprano necesidad, usuarios, datos y controles con el profesor para detectar brechas. Eviten datos personales o sensibles reales.</p>
+        </div>
+        <div class="check-panel" id="caseSelf" data-persist-group="case-viability">
+          <div class="check-head"><span class="ti">Test de viabilidad</span><span class="check-score">6 condiciones</span></div>
+          <div class="check-grid">
+            <label class="check-item"><input type="checkbox" /><span>Problema real y usuarios identificables</span></label>
+            <label class="check-item"><input type="checkbox" /><span>Dos fuentes de datos complementarias</span></label>
+            <label class="check-item"><input type="checkbox" /><span>Búsqueda o recuperación con evidencia</span></label>
+            <label class="check-item"><input type="checkbox" /><span>Orquestación e historial demostrables</span></label>
+            <label class="check-item"><input type="checkbox" /><span>Controles de seguridad concretos y testeables</span></label>
+            <label class="check-item"><input type="checkbox" /><span>API, interfaz y despliegue operativos</span></label>
+          </div>
+          <p class="status-line" id="caseVerdict" aria-live="polite">Marca las condiciones que tu caso cumple.</p>
+        </div>
+      </div>
+      <div class="foot reveal"><a class="btn ghost" href="index.html">← Índice</a><a class="btn primary" href="02-que-construir.html">Qué construir →</a></div>
+    </div>
+  </section>
+</main>
+
+<nav class="deck-controls" aria-label="Navegación del deck"><button type="button" data-deck-prev aria-label="Panel anterior">←</button><span class="control-label">navegar</span><button type="button" data-deck-next aria-label="Panel siguiente">→</button></nav>
+<script src="assets/trabajo-final.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "asistente-farmacias"
+version = "0.1.0"
+description = "Asistente informativo de farmacias de turno y vademécum — Trabajo Final Módulo 04"
+authors = ["Tu Nombre <tu_correo@ejemplo.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+langgraph = "^0.2.0"
+langchain-core = "^0.3.0"
+langchain-openai = "^0.2.0"
+python-dotenv = "^1.0.1"
+pydantic = "^2.9.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+httpx = "^0.27.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

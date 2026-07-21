@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Entregables y demo · Trabajo Final — Módulo 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Hanken+Grotesk:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/styles.css" />
+<link rel="stylesheet" href="assets/trabajo-final.css" />
+</head>
+<body class="bg-grid">
+<div class="deck-progress" role="progressbar" aria-label="Progreso del deck" aria-valuemin="1" aria-valuemax="18" aria-valuenow="9"></div>
+<header class="deck-top">
+  <a class="brand" href="index.html">FEN · UEjecutivos · <b>Trabajo Final</b></a>
+  <span class="nav-right"><a class="to-hub" href="index.html"><span class="ic">☰</span> Índice</a><span class="step-name">Entrega · 1/3</span><span class="count" aria-live="polite">9 / 18</span></span>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Paso 3 · Del código a la evidencia</span>
+      <h1 class="reveal">Cuatro entregables, una historia</h1>
+      <p class="lead reveal mt-m">El producto, los controles y las decisiones deben sostenerse entre sí. La demo no reemplaza la evidencia escrita.</p>
+      <div class="delivery-pipeline mt-m reveal" aria-label="Pipeline de entrega del trabajo final">
+        <article class="delivery-step"><h3>Informe</h3><p>Seguridad, privacidad y calidad: controles por capa, datos que guardan y método de evaluación.</p></article>
+        <article class="delivery-step"><h3>Matriz de riesgos</h3><p>Riesgo, probabilidad, impacto, mitigación verificable y dueño responsable.</p></article>
+        <article class="delivery-step"><h3>Código + deploy</h3><p>Repositorio o paquete de código, API y front accesibles en una URL cloud.</p></article>
+        <article class="delivery-step"><h3>Demo en vivo</h3><p><strong>Caso → arquitectura → tres flujos → riesgos.</strong> El sistema responde contra el entorno desplegado.</p></article>
+      </div>
+      <p class="compact-note reveal mt-m">Apoyo: <a href="../clase-01-02-seguridad-calidad-html/05-defensa-en-profundidad.html">defensa en profundidad</a> · <a href="../clase-01-02-seguridad-calidad-html/08-riesgos-genai.html">riesgos GenAI</a> · <a href="../clase-01-02-seguridad-calidad-html/09-gobernanza-responsible-ai.html">gobernanza</a>.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Guion de la demo</span>
+      <h2 class="reveal">Seis escenas, evidencia directa</h2>
+      <p class="lead reveal mt-m">Presenten contra la URL desplegada. Si MINSAL falla, muestren timeout, mensaje digno y fallback documentado.</p>
+      <ol class="demo-sequence mt-m reveal" aria-label="Secuencia recomendada de la demo">
+        <li><b>01 · Caso</b>Necesidad, usuarios, fuentes y trade-offs.</li>
+        <li><b>02 · Arquitectura</b>Grafo, tools, memoria y controles.</li>
+        <li><b>03 · Turnos</b>Comuna y segundo turno dependiente.</li>
+        <li><b>04 · RAG</b>Ficha recuperada y cita visible.</li>
+        <li><b>05 · Guardrail</b>Intento adversario, rechazo y derivación.</li>
+        <li><b>06 · Operación</b>Dos riesgos críticos y sus mitigaciones.</li>
+      </ol>
+      <div class="cols-2 top mt-m reveal">
+        <p class="scope-note"><strong>Logística oficial</strong><span>La fecha, el canal de entrega y la duración de cada grupo se publican por el canal oficial del curso. No usen esta presentación como calendario.</span></p>
+        <p class="scope-note"><strong>Responsabilidad grupal</strong><span>La evaluación es grupal y cualquier integrante debe poder explicar cualquier parte. Revisen la <a href="../../../../diploma-info/teams.md">composición de equipos</a>.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="inner">
+      <span class="eyebrow reveal">Antes de presentar · checklist persistente</span>
+      <h2 class="reveal">Lleguen con evidencia preparada</h2>
+      <p class="lead reveal mt-m">Marquen cada prueba cuando exista y haya sido repetida por más de un integrante.</p>
+      <div class="check-panel mt-m reveal" id="preDemo" data-persist-group="pre-demo">
+        <div class="check-head"><span class="ti">Pre-flight de la demo</span><span class="check-score"><span class="num" id="preNum">0</span> / 8</span></div>
+        <div class="check-grid">
+          <label class="check-item"><input type="checkbox" /><span>La URL cloud responde; no depende de localhost</span></label>
+          <label class="check-item"><input type="checkbox" /><span>Dos turnos dependientes conservan el contexto</span></label>
+          <label class="check-item"><input type="checkbox" /><span>El guardrail resiste pregunta directa, insistencia y roleplay</span></label>
+          <label class="check-item"><input type="checkbox" /><span>El RAG cita la ficha o registro recuperado</span></label>
+          <label class="check-item"><input type="checkbox" /><span>MINSAL se consulta en vivo y existe fallback documentado</span></label>
+          <label class="check-item"><input type="checkbox" /><span>Informe de seguridad, privacidad y calidad listo</span></label>
+          <label class="check-item"><input type="checkbox" /><span>Matriz con mitigaciones verificables y dueños</span></label>
+          <label class="check-item"><input type="checkbox" /><span>Todos pueden explicar grafo, datos, controles y deploy</span></label>
+        </div>
+        <p class="status-line" id="preMsg" aria-live="polite">0 de 8 — faltan evidencias por preparar.</p>
+      </div>
+      <div class="foot reveal"><a class="btn ghost" href="02-que-construir.html">← Qué construir</a><a class="btn primary" href="04-rubrica.html">Rúbrica →</a></div>
+    </div>
+  </section>
+</main>
+
+<nav class="deck-controls" aria-label="Navegación del deck"><button type="button" data-deck-prev aria-label="Panel anterior">←</button><span class="control-label">navegar</span><button type="button" data-deck-next aria-label="Panel siguiente">→</button></nav>
+<script src="assets/trabajo-final.js"></script>
+</body>
+</html>
