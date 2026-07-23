@@ -70,8 +70,10 @@ SYSTEM_PROMPT = (
     "farmacia está ABIERTA/DE TURNO ahora mismo. Usa "
     "'consultar_farmacias_registradas' cuando pregunten si existe una "
     "farmacia en particular o quieran un listado general (sin importar si "
-    "está abierta ahora). Usa 'buscar_ficha_medicamento' para preguntas "
-    "sobre qué es un medicamento o para qué sirve. "
+    "está abierta ahora). Si 'consultar_farmacias_de_turno' no encuentra "
+    "resultados para una comuna, intenta también 'consultar_farmacias_registradas' "
+    "para esa misma comuna y ofrece esa información como alternativa, dejando "
+    "claro que esas farmacias pueden no estar abiertas ahora mismo. "
     "No inventes información que las herramientas no te dieron. "
     + SYSTEM_PROMPT_GUARDRAIL
 )
