@@ -104,6 +104,9 @@ def responder(user_id: str, pregunta: str) -> str:
     )
 
     if _LANGFUSE_ACTIVO and _langfuse_client:
-        _langfuse_client.flush()  # fuerza el envío inmediato de la traza
+        try:
+            _langfuse_client.flush()
+        except Exception as e:
+            print(f"⚠️ Error al enviar traza a Langfuse: {e!r}")
 
     return resultado["messages"][-1].content
