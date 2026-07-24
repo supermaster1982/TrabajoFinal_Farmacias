@@ -6,5 +6,4 @@ dist/
 *.egg-info/
 .pytest_cache/
 .DS_Store
-data/vademecum/*.csv
 !data/vademecum/.gitkeep

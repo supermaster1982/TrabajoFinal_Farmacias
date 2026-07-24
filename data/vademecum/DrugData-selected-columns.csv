@@ -1,0 +1,221 @@
+Drug ID;Drug Name;Generic Name;Drug Class;Indications;Dosage Form;Strength;Route of Administration;Mechanism of Action;Side Effects
+1;Aspirin;Acetylsalicylic Acid;Analgesic;Headache;Tablet;325 mg;Oral;Inhibits prostaglandin synthesis;Stomach irritation
+2;Amoxicillin;Amoxicillin;Antibiotic;Bacterial Infections;Capsule;500 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+3;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;10 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+4;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;100 mcg/inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+5;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;20 mg;Oral;Reduces stomach acid production;Headache
+6;Levothyroxine;Levothyroxine;Hormone;Thyroid Disorder;Tablet;50 mcg;Oral;Replaces or supplements thyroid hormone;Dizziness
+7;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;20 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+8;Metformin;Metformin;Oral Antidiabetic;Type 2 Diabetes;Tablet;1000 mg;Oral;Decreases glucose production by the liver;Diarrhea
+9;Ibuprofen;Ibuprofen;NSAID;Pain and Inflammation;Tablet;200 mg;Oral;Inhibits prostaglandin synthesis;Upset stomach
+10;Ciprofloxacin;Ciprofloxacin;Fluoroquinolone;Bacterial Infections;Tablet;500 mg;Oral;Inhibits bacterial DNA synthesis;Nausea
+11;Alprazolam;Alprazolam;Anxiolytic;Anxiety;Tablet;0.5 mg;Oral;Enhances effects of GABA in the brain;Drowsiness
+12;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;150 mg;Oral;Reduces stomach acid production;Headache
+13;Atorvastatin;Atorvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+14;Cephalexin;Cephalexin;Antibiotic;Bacterial Infections;Capsule;250 mg;Oral;Inhibits bacterial cell wall synthesis;Upset stomach
+15;Paracetamol;Paracetamol;Analgesic;Pain and Fever;Tablet;500 mg;Oral;Precise mechanism not fully understood;None at normal doses
+16;Morphine;Morphine;Analgesic;Severe Pain;Tablet;10 mg;Oral;Binds to opioid receptors in the brain;Respiratory depression
+17;Risperidone;Risperidone;Antipsychotic;Schizophrenia;Tablet;2 mg;Oral;Blocks dopamine and serotonin receptors;Weight gain
+18;Sildenafil;Sildenafil;Erectile Dysfunction Agent;Erectile Dysfunction;Tablet;50 mg;Oral;Inhibits phosphodiesterase type 5;Headache
+19;Furosemide;Furosemide;Loop Diuretic;Edema;Tablet;40 mg;Oral;Inhibits sodium and water reabsorption;Dehydration
+20;Esomeprazole;Esomeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+21;Warfarin;Warfarin;Anticoagulant;Thrombosis;Tablet;5 mg;Oral;Inhibits vitamin K-dependent clotting factors;Bleeding
+22;Tramadol;Tramadol;Analgesic;Moderate to Severe Pain;Tablet;100 mg;Oral;Binds to opioid receptors and inhibits serotonin reuptake;Constipation
+23;Fluoxetine;Fluoxetine;Selective Serotonin Reuptake Inhibitor;Depression;Capsule;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+24;Levofloxacin;Levofloxacin;Fluoroquinolone;Bacterial Infections;Tablet;250 mg;Oral;Inhibits bacterial DNA synthesis;Nausea
+25;Lorazepam;Lorazepam;Anxiolytic;Anxiety;Tablet;1 mg;Oral;Enhances effects of GABA in the brain;Drowsiness
+26;Losartan;Losartan;Angiotensin II Receptor Blocker;Hypertension;Tablet;50 mg;Oral;Blocks angiotensin II receptors;Cough
+27;Amphetamine;Amphetamine;Stimulant;Attention Deficit Hyperactivity Disorder;Tablet;10 mg;Oral;Increases release of norepinephrine and dopamine;Insomnia
+28;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+29;Metoprolol;Metoprolol;Beta Blocker;Hypertension;Tablet;25 mg;Oral;Blocks beta receptors;Low heart rate
+30;Venlafaxine;Venlafaxine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Capsule;75 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+31;Methylphenidate;Methylphenidate;Stimulant;Attention Deficit Hyperactivity Disorder;Tablet;10 mg;Oral;Increases norepinephrine and dopamine release;Insomnia
+32;Rosuvastatin;Rosuvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;20 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+33;Bupropion;Bupropion;Atypical Antidepressant;Depression;Tablet;150 mg;Oral;Inhibits reuptake of dopamine and norepinephrine;Insomnia
+34;Ceftriaxone;Ceftriaxone;Cephalosporin;Bacterial Infections;Injection;1 g;Intravenous/Intramuscular;Inhibits bacterial cell wall synthesis;Injection site reactions
+35;Fentanyl;Fentanyl;Opioid Analgesic;Severe Pain;Transdermal Patch;100 mcg/hour;Transdermal;Binds to opioid receptors in the brain;Respiratory depression
+36;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;25 mg;Oral;Increases urine output;Dehydration
+37;Escitalopram;Escitalopram;Selective Serotonin Reuptake Inhibitor;Depression;Capsule;10 mg;Oral;Inhibits serotonin reuptake;Nausea
+38;Amlodipine;Amlodipine;Calcium Channel Blocker;Hypertension;Tablet;5 mg;Oral;Blocks calcium channels;Swelling of legs and ankles
+39;Mirtazapine;Mirtazapine;Atypical Antidepressant;Depression;Tablet;30 mg;Oral;Enhances noradrenergic and serotonergic activity;Drowsiness
+40;Trazodone;Trazodone;Serotonin Modulator;Depression;Tablet;50 mg;Oral;Enhances serotonin activity;Drowsiness
+41;Pravastatin;Pravastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+42;Aripiprazole;Aripiprazole;Atypical Antipsychotic;Schizophrenia;Tablet;10 mg;Oral;Partial agonist at dopamine and serotonin receptors;Weight gain
+43;Amoxicillin-Clavulanate;Amoxicillin-Clavulanate;Antibiotic;Bacterial Infections;Tablet;875/125 mg;Oral;Inhibits bacterial cell wall synthesis;Diarrhea
+44;Lithium;Lithium;Mood Stabilizer;Bipolar Disorder;Capsule;300 mg;Oral;Precise mechanism not fully understood;Frequent urination
+45;Pregabalin;Pregabalin;Anticonvulsant;Neuropathic Pain;Capsule;75 mg;Oral;Binds to calcium channels in nerve cells;Dizziness
+46;Isosorbide Mononitrate;Isosorbide Mononitrate;Vasodilator;Angina;Tablet;60 mg;Oral;Relaxes blood vessels;Headache
+47;Ezetimibe;Ezetimibe;Cholesterol Absorption Inhibitor;Hyperlipidemia;Tablet;10 mg;Oral;Inhibits cholesterol absorption from the intestines;Stomach pain
+48;Enalapril;Enalapril;Angiotensin-Converting Enzyme Inhibitor;Hypertension;Tablet;20 mg;Oral;Inhibits angiotensin-converting enzyme;Cough
+49;Diazepam;Diazepam;Benzodiazepine;Anxiety;Tablet;5 mg;Oral;Enhances effects of GABA in the brain;Drowsiness
+50;Methotrexate;Methotrexate;Immunosuppressant;Rheumatoid Arthritis;Tablet;10 mg;Oral;Inhibits folic acid synthesis;Nausea
+51;Cetirizine;Cetirizine;Antihistamine;Allergies;Tablet;10 mg;Oral;Blocks histamine receptors;Drowsiness
+52;Bromocriptine;Bromocriptine;Dopamine Agonist;Parkinson's Disease;Tablet;2.5 mg;Oral;Stimulates dopamine receptors;Nausea
+53;Ethinyl Estradiol / Levonorgestrel;Ethinyl Estradiol / Levonorgestrel;Combined Oral Contraceptive;Contraception;Pill;0.03 mg / 0.15 mg;Oral;Inhibits ovulation;Nausea
+54;Gabapentin;Gabapentin;Anticonvulsant;Epilepsy;Capsule;300 mg;Oral;Increases GABA activity;Dizziness
+55;Naproxen;Naproxen;NSAID;Pain and Inflammation;Tablet;250 mg;Oral;Inhibits prostaglandin synthesis;Stomach irritation
+56;Carvedilol;Carvedilol;Beta Blocker;Hypertension;Tablet;25 mg;Oral;Blocks beta receptors;Low heart rate
+57;Clopidogrel;Clopidogrel;Platelet Aggregation Inhibitor;Cardiovascular Disease;Tablet;75 mg;Oral;Inhibits platelet aggregation;Dizziness
+58;Ezetimibe / Simvastatin;Ezetimibe / Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;10 mg / 20 mg;Oral;Inhibits cholesterol absorption and synthesis;Muscle pain
+59;Fluticasone Propionate;Fluticasone Propionate;Corticosteroid;Asthma;Inhaler;50 mcg/inhalation;Inhalation;Reduces inflammation and bronchoconstriction;Hoarseness
+60;Metronidazole;Metronidazole;Antibiotic;Bacterial Infections;Tablet;500 mg;Oral;Disrupts DNA and protein synthesis;Nausea
+61;Duloxetine;Duloxetine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Capsule;30 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+62;Chlorthalidone;Chlorthalidone;Thiazide Diuretic;Hypertension;Tablet;25 mg;Oral;Increases urine output;Dehydration
+63;Cefuroxime;Cefuroxime;Cephalosporin;Bacterial Infections;Tablet;500 mg;Oral;Inhibits bacterial cell wall synthesis;Upset stomach
+64;Alendronate;Alendronate;Bisphosphonate;Osteoporosis;Tablet;70 mg;Oral;Inhibits bone resorption;Stomach irritation
+65;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;150 mg;Oral;Reduces stomach acid production;Headache
+66;Levetiracetam;Levetiracetam;Anticonvulsant;Epilepsy;Tablet;500 mg;Oral;Precise mechanism not fully understood;Dizziness
+67;Pioglitazone;Pioglitazone;Thiazolidinedione;Type 2 Diabetes;Tablet;30 mg;Oral;Improves insulin sensitivity;Fluid retention
+68;Cyclobenzaprine;Cyclobenzaprine;Muscle Relaxant;Muscle Spasms;Tablet;10 mg;Oral;Reduces muscle spasms;Drowsiness
+69;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;75 mcg;Oral;Replaces thyroid hormone;Tremor
+70;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;100 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+71;Paroxetine;Paroxetine;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;40 mg;Oral;Inhibits serotonin reuptake;Nausea
+72;Allopurinol;Allopurinol;Xanthine Oxidase Inhibitor;Gout;Tablet;300 mg;Oral;Inhibits uric acid production;Rash
+73;Ethinyl Estradiol / Norgestimate;Ethinyl Estradiol / Norgestimate;Monophasic Oral Contraceptive;Contraception;Pill;0.035 mg / 0.25 mg;Oral;Inhibits ovulation;Nausea
+74;Valacyclovir;Valacyclovir;Antiviral;Herpes Infections;Tablet;500 mg;Oral;Inhibits viral DNA replication;Headache
+75;Clonazepam;Clonazepam;Benzodiazepine;Anxiety;Tablet;0.5 mg;Oral;Enhances effects of GABA in the brain;Drowsiness
+76;Memantine;Memantine;NMDA Receptor Antagonist;Alzheimer's Disease;Tablet;10 mg;Oral;Blocks NMDA receptors;Dizziness
+77;Insulin Glargine;Insulin Glargine;Long-acting Insulin;Diabetes;Multiple Dose Vial;100 units/mL;Subcutaneous;Regulates blood sugar;Injection site reactions
+78;Potassium Chloride;Potassium Chloride;Electrolyte Supplement;Hypokalemia;Tablet;20 mEq;Oral;Supplements potassium levels;Upset stomach
+79;Tamoxifen;Tamoxifen;Selective Estrogen Receptor Modulator;Breast Cancer;Tablet;20 mg;Oral;Blocks estrogen receptors;Hot flashes
+80;Latanoprost;Latanoprost;Prostaglandin Analog;Glaucoma;Eye Drops;0.01%;Ophthalmic;Lowers intraocular pressure;Stinging
+81;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;300 mg;Oral;Reduces stomach acid production;Headache
+82;Loratadine;Loratadine;Antihistamine;Allergies;Tablet;10 mg;Oral;Blocks histamine receptors;Drowsiness
+83;Bimatoprost;Bimatoprost;Prostaglandin Analog;Glaucoma;Eye Drops;0.03%;Ophthalmic;Lowers intraocular pressure;Stinging
+84;Lamotrigine;Lamotrigine;Anticonvulsant;Epilepsy;Tablet;150 mg;Oral;Precise mechanism not fully understood;Dizziness
+85;Rosiglitazone;Rosiglitazone;Thiazolidinedione;Type 2 Diabetes;Tablet;4 mg;Oral;Improves insulin sensitivity;Fluid retention
+86;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+87;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;10 mg;Oral;Suppresses immune response;Weight gain
+88;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;100 mcg / 50 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+89;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+90;Ciprofloxacin;Ciprofloxacin;Fluoroquinolone;Bacterial Infections;Tablet;500 mg;Oral;Inhibits bacterial DNA synthesis;Nausea
+91;Hydrochlorothiazide / Lisinopril;Hydrochlorothiazide / Lisinopril;Diuretic / ACE Inhibitor;Hypertension;Tablet;12.5 mg / 10 mg;Oral;Increases urine output / Inhibits angiotensin-converting enzyme;Cough
+92;Ondansetron;Ondansetron;Antiemetic;Nausea and Vomiting;Tablet;8 mg;Oral;Blocks serotonin receptors;Drowsiness
+93;Amiodarone;Amiodarone;Antiarrhythmic;Arrhythmias;Tablet;200 mg;Oral;Prolongs action potential duration;Photosensitivity
+94;Drospirenone / Ethinyl Estradiol;Drospirenone / Ethinyl Estradiol;Combined Oral Contraceptive;Contraception;Pill;3 mg / 0.03 mg;Oral;Inhibits ovulation;Nausea
+95;Warfarin;Warfarin;Anticoagulant;Blood Clots;Tablet;5 mg;Oral;Inhibits vitamin K-dependent clotting factors;Bleeding risk
+96;Propranolol;Propranolol;Beta Blocker;Hypertension;Tablet;40 mg;Oral;Blocks beta receptors;Low heart rate
+97;Mirtazapine;Mirtazapine;Atypical Antidepressant;Depression;Tablet;15 mg;Oral;Enhances noradrenergic and serotonergic activity;Drowsiness
+98;Fluoxetine;Fluoxetine;Selective Serotonin Reuptake Inhibitor;Depression;Capsule;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+99;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;25 mg;Oral;Increases urine output;Dehydration
+100;Olanzapine;Olanzapine;Atypical Antipsychotic;Schizophrenia;Tablet;10 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+101;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;100 mcg;Oral;Replaces thyroid hormone;Tremor
+102;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;200 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+103;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;20 mg;Oral;Suppresses immune response;Weight gain
+104;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;250 mcg / 50 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+105;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;80 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+106;Ciprofloxacin;Ciprofloxacin;Fluoroquinolone;Bacterial Infections;Tablet;750 mg;Oral;Inhibits bacterial DNA synthesis;Nausea
+107;Hydrochlorothiazide / Lisinopril;Hydrochlorothiazide / Lisinopril;Diuretic / ACE Inhibitor;Hypertension;Tablet;25 mg / 20 mg;Oral;Increases urine output / Inhibits angiotensin-converting enzyme;Cough
+108;Ondansetron;Ondansetron;Antiemetic;Nausea and Vomiting;Tablet;4 mg;Oral;Blocks serotonin receptors;Drowsiness
+109;Amiodarone;Amiodarone;Antiarrhythmic;Arrhythmias;Tablet;400 mg;Oral;Prolongs action potential duration;Photosensitivity
+110;Drospirenone / Ethinyl Estradiol;Drospirenone / Ethinyl Estradiol;Combined Oral Contraceptive;Contraception;Pill;3 mg / 0.02 mg;Oral;Inhibits ovulation;Nausea
+111;Warfarin;Warfarin;Anticoagulant;Blood Clots;Tablet;7.5 mg;Oral;Inhibits vitamin K-dependent clotting factors;Bleeding risk
+112;Propranolol;Propranolol;Beta Blocker;Hypertension;Tablet;60 mg;Oral;Blocks beta receptors;Low heart rate
+113;Mirtazapine;Mirtazapine;Atypical Antidepressant;Depression;Tablet;30 mg;Oral;Enhances noradrenergic and serotonergic activity;Drowsiness
+114;Fluoxetine;Fluoxetine;Selective Serotonin Reuptake Inhibitor;Depression;Capsule;40 mg;Oral;Inhibits serotonin reuptake;Nausea
+115;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;50 mg;Oral;Increases urine output;Dehydration
+116;Olanzapine;Olanzapine;Atypical Antipsychotic;Schizophrenia;Tablet;20 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+117;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;125 mcg;Oral;Replaces thyroid hormone;Tremor
+118;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;300 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+119;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;40 mg;Oral;Suppresses immune response;Weight gain
+120;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;500 mcg / 50 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+121;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;10 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+122;Amoxicillin / Clavulanate;Amoxicillin / Clavulanate;Combination Antibiotic;Bacterial Infections;Tablet;875 mg / 125 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+123;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;20 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+124;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;200 mcg per inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+125;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+126;Atenolol;Atenolol;Beta Blocker;Hypertension;Tablet;50 mg;Oral;Blocks beta receptors;Low heart rate
+127;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;10 mg;Oral;Inhibits serotonin reuptake;Nausea
+128;Esomeprazole;Esomeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;20 mg;Oral;Reduces stomach acid production;Headache
+129;Losartan;Losartan;Angiotensin II Receptor Blocker;Hypertension;Tablet;100 mg;Oral;Blocks angiotensin II receptors;Cough
+130;Venlafaxine;Venlafaxine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;75 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+131;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;150 mg;Oral;Reduces stomach acid production;Headache
+132;Loratadine;Loratadine;Antihistamine;Allergies;Tablet;5 mg;Oral;Blocks histamine receptors;Drowsiness (less common)
+133;Carvedilol;Carvedilol;Alpha-Beta Blocker;Hypertension;Tablet;25 mg;Oral;Blocks alpha and beta receptors;Dizziness
+134;Sertraline;Sertraline;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;50 mg;Oral;Inhibits serotonin reuptake;Nausea
+135;Duloxetine;Duloxetine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;30 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+136;Bupropion;Bupropion;Atypical Antidepressant;Depression;Tablet;150 mg;Oral;Increases norepinephrine and dopamine;Insomnia
+137;Lovastatin;Lovastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;20 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+138;Clonazepam;Clonazepam;Benzodiazepine;Anxiety;Tablet;1 mg;Oral;Enhances GABA activity;Drowsiness
+139;Paroxetine;Paroxetine;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+140;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;12.5 mg;Oral;Increases urine output;Dehydration
+141;Olanzapine;Olanzapine;Atypical Antipsychotic;Schizophrenia;Tablet;15 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+142;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;150 mcg;Oral;Replaces thyroid hormone;Tremor
+143;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;100 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+144;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;10 mg;Oral;Suppresses immune response;Weight gain
+145;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;250 mcg / 25 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+146;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+147;Amoxicillin;Amoxicillin;Antibiotic;Bacterial Infections;Capsule;250 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+148;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;5 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+149;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;90 mcg per inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+150;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;10 mg;Oral;Reduces stomach acid production;Headache
+151;Atenolol;Atenolol;Beta Blocker;Hypertension;Tablet;25 mg;Oral;Blocks beta receptors;Low heart rate
+152;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+153;Esomeprazole;Esomeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+154;Losartan;Losartan;Angiotensin II Receptor Blocker;Hypertension;Tablet;50 mg;Oral;Blocks angiotensin II receptors;Cough
+155;Venlafaxine;Venlafaxine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;150 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+156;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;75 mg;Oral;Reduces stomach acid production;Headache
+157;Loratadine;Loratadine;Antihistamine;Allergies;Tablet;10 mg;Oral;Blocks histamine receptors;Drowsiness (less common)
+158;Carvedilol;Carvedilol;Alpha-Beta Blocker;Hypertension;Tablet;12.5 mg;Oral;Blocks alpha and beta receptors;Dizziness
+159;Sertraline;Sertraline;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;100 mg;Oral;Inhibits serotonin reuptake;Nausea
+160;Duloxetine;Duloxetine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;60 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+161;Bupropion;Bupropion;Atypical Antidepressant;Depression;Tablet;300 mg;Oral;Increases norepinephrine and dopamine;Insomnia
+162;Lovastatin;Lovastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+163;Clonazepam;Clonazepam;Benzodiazepine;Anxiety;Tablet;2 mg;Oral;Enhances GABA activity;Drowsiness
+164;Paroxetine;Paroxetine;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;40 mg;Oral;Inhibits serotonin reuptake;Nausea
+165;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;25 mg;Oral;Increases urine output;Dehydration
+166;Olanzapine;Olanzapine;Atypical Antipsychotic;Schizophrenia;Tablet;10 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+167;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;75 mcg;Oral;Replaces thyroid hormone;Tremor
+168;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;50 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+169;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;5 mg;Oral;Suppresses immune response;Weight gain
+170;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;100 mcg / 10 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+171;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;80 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+172;Amoxicillin;Amoxicillin;Antibiotic;Bacterial Infections;Capsule;125 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+173;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;2.5 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+174;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;90 mcg per inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+175;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;20 mg;Oral;Reduces stomach acid production;Headache
+176;Atenolol;Atenolol;Beta Blocker;Hypertension;Tablet;100 mg;Oral;Blocks beta receptors;Low heart rate
+177;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;40 mg;Oral;Inhibits serotonin reuptake;Nausea
+178;Esomeprazole;Esomeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+179;Losartan;Losartan;Angiotensin II Receptor Blocker;Hypertension;Tablet;25 mg;Oral;Blocks angiotensin II receptors;Cough
+180;Venlafaxine;Venlafaxine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;75 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+181;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;150 mg;Oral;Reduces stomach acid production;Headache
+182;Loratadine;Loratadine;Antihistamine;Allergies;Tablet;10 mg;Oral;Blocks histamine receptors;Drowsiness (less common)
+183;Carvedilol;Carvedilol;Alpha-Beta Blocker;Hypertension;Tablet;6.25 mg;Oral;Blocks alpha and beta receptors;Dizziness
+184;Sertraline;Sertraline;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;150 mg;Oral;Inhibits serotonin reuptake;Nausea
+185;Duloxetine;Duloxetine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;90 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+186;Bupropion;Bupropion;Atypical Antidepressant;Depression;Tablet;450 mg;Oral;Increases norepinephrine and dopamine;Insomnia
+187;Lovastatin;Lovastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;60 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+188;Clonazepam;Clonazepam;Benzodiazepine;Anxiety;Tablet;2 mg;Oral;Enhances GABA activity;Drowsiness
+189;Paroxetine;Paroxetine;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;60 mg;Oral;Inhibits serotonin reuptake;Nausea
+190;Hydrochlorothiazide;Hydrochlorothiazide;Thiazide Diuretic;Hypertension;Tablet;50 mg;Oral;Increases urine output;Dehydration
+191;Olanzapine;Olanzapine;Atypical Antipsychotic;Schizophrenia;Tablet;20 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+192;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;100 mcg;Oral;Replaces thyroid hormone;Tremor
+193;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;25 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+194;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;2.5 mg;Oral;Suppresses immune response;Weight gain
+195;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;50 mcg / 5 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+196;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;20 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+197;Amoxicillin;Amoxicillin;Antibiotic;Bacterial Infections;Capsule;500 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+198;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;10 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+199;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;180 mcg per inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+200;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+201;Levothyroxine;Levothyroxine;Thyroid Hormone;Hypothyroidism;Tablet;125 mcg;Oral;Replaces thyroid hormone;Tremor
+202;Quetiapine;Quetiapine;Atypical Antipsychotic;Schizophrenia;Tablet;100 mg;Oral;Blocks dopamine and serotonin receptors;Drowsiness
+203;Prednisone;Prednisone;Corticosteroid;Inflammatory Conditions;Tablet;10 mg;Oral;Suppresses immune response;Weight gain
+204;Fluticasone Propionate / Salmeterol;Fluticasone Propionate / Salmeterol;Corticosteroid / Long-acting Beta Agonist;Asthma;Inhaler;200 mcg / 20 mcg per inhalation;Inhalation;Reduces inflammation and bronchoconstriction; Hoarseness
+205;Simvastatin;Simvastatin;Cholesterol-lowering;Hyperlipidemia;Tablet;40 mg;Oral;Inhibits cholesterol synthesis;Muscle pain
+206;Amoxicillin;Amoxicillin;Antibiotic;Bacterial Infections;Capsule;250 mg;Oral;Inhibits bacterial cell wall synthesis;Nausea
+207;Lisinopril;Lisinopril;Antihypertensive;Hypertension;Tablet;5 mg;Oral;Blocks conversion of angiotensin I to angiotensin II;Cough
+208;Albuterol;Albuterol;Bronchodilator;Asthma;Inhaler;180 mcg per inhalation;Inhalation;Stimulates beta-2 adrenergic receptors;Tremor
+209;Omeprazole;Omeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;20 mg;Oral;Reduces stomach acid production;Headache
+210;Atenolol;Atenolol;Beta Blocker;Hypertension;Tablet;50 mg;Oral;Blocks beta receptors;Low heart rate
+211;Citalopram;Citalopram;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;20 mg;Oral;Inhibits serotonin reuptake;Nausea
+212;Esomeprazole;Esomeprazole;Proton Pump Inhibitor;Acid Reflux;Capsule;40 mg;Oral;Reduces stomach acid production;Headache
+213;Losartan;Losartan;Angiotensin II Receptor Blocker;Hypertension;Tablet;100 mg;Oral;Blocks angiotensin II receptors;Cough
+214;Venlafaxine;Venlafaxine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;75 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+215;Ranitidine;Ranitidine;H2 Blocker;Gastric Ulcers;Tablet;75 mg;Oral;Reduces stomach acid production;Headache
+216;Loratadine;Loratadine;Antihistamine;Allergies;Tablet;10 mg;Oral;Blocks histamine receptors;Drowsiness (less common)
+217;Carvedilol;Carvedilol;Alpha-Beta Blocker;Hypertension;Tablet;12.5 mg;Oral;Blocks alpha and beta receptors;Dizziness
+218;Sertraline;Sertraline;Selective Serotonin Reuptake Inhibitor;Depression;Tablet;100 mg;Oral;Inhibits serotonin reuptake;Nausea
+219;Duloxetine;Duloxetine;Selective Serotonin-Norepinephrine Reuptake Inhibitor;Depression;Tablet;60 mg;Oral;Inhibits serotonin and norepinephrine reuptake;Nausea
+220;Bupropion;Bupropion;Atypical Antidepressant;Depression;Tablet;300 mg;Oral;Increases norepinephrine and dopamine;Insomnia
