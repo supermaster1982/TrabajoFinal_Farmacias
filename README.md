@@ -1,50 +1,62 @@
 # asistente-farmacias
 
-Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional y guardrails de seguridad.
+Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional, RAG semántico y guardrails de seguridad.
 Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universidad de Chile).
 
-## ⚠️ Estado actual: Stage 0 — esqueleto (walking skeleton)
+## Estado actual
 
-Este commit valida que la tubería completa funciona de punta a punta, **con
-tools simuladas** (stub). Todavía NO consulta la API real de MINSAL ni un
-vector store real. El objetivo de esta etapa es probar, antes de invertir
-tiempo en las integraciones reales:
+| Pieza | Estado |
+|---|---|
+| Agente LangGraph + memoria por `user_id` | ✅ Funcionando |
+| Farmacias de turno (API MINSAL en vivo) | ✅ Funcionando — `getLocalesTurnos.php` |
+| Directorio completo de farmacias (API MINSAL en vivo) | ✅ Funcionando — `getLocales.php` |
+| RAG del vademécum (Qdrant + 220 fichas de medicamentos) | ✅ Funcionando |
+| Observabilidad (Langfuse Cloud + LangSmith) | ✅ Funcionando |
+| Guardrails robustos (más allá del prompt básico) | ⏳ Pendiente |
+| Front conversacional | ⏳ Pendiente |
+| Despliegue en la nube | ⏳ Pendiente |
 
-- que el agente LangGraph elige correctamente entre las dos tools,
-- que la memoria por `user_id` funciona (dos turnos dependientes),
-- que FastAPI expone el contrato esperado.
-
-Cada tool stub tiene un bloque `TODO` indicando exactamente qué falta y en
-qué rama se resuelve.
-
-## Arquitectura (stage 0)
+## Arquitectura
 
 ```
 POST /chat {user_id, pregunta}
-        ↓
-   FastAPI (api/main.py)
-        ↓
-   LangGraph agent (agent/graph.py) — create_react_agent + MemorySaver(thread_id=user_id)
-   (el checkpointer vive dentro de graph.py; si más adelante crece, se separa a su propia carpeta)
-        ↓
-   ┌────────────────────────┬─────────────────────────┐
-   tool_minsal.py (STUB)     tool_rag.py (STUB)
-   → API MINSAL real         → Qdrant real
-     (rama feature/tool-minsal) (rama feature/rag-vademecum)
+↓
+FastAPI (api/main.py)
+↓
+LangGraph agent (agent/graph.py) — create_react_agent + MemorySaver(thread_id=user_id)
+↓
+┌──────────────────────────┬──────────────────────────┬─────────────────────────┐
+tool_minsal.py tool_minsal.py tool_rag.py
+consultar_farmacias_de_turno consultar_farmacias_registradas buscar_ficha_medicamento
+→ getLocalesTurnos.php → getLocales.php → Qdrant (vademecum_medicamentos)
 ```
+
+Observabilidad opcional y degradante: si no hay claves de Langfuse/LangSmith en el `.env`, el agente funciona exactamente igual, solo sin trazas.
 
 ## Requisitos previos
 
 - Python 3.11+
 - Poetry
-- Una API key de OpenAI (para el LLM que decide qué tool usar)
+- API key de OpenAI
+- Cluster de Qdrant Cloud (URL + API key)
+- (Opcional) Cuenta de Langfuse Cloud y/o LangSmith, para observabilidad
 
 ## Setup local
 
 ```bash
-cp .env.example .env   # completa OPENAI_API_KEY
+cp .env.example .env   # completa OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY (y Langfuse/LangSmith si quieres trazas)
 poetry install --with dev
 ```
+
+## Poblar el vademécum en Qdrant (una sola vez)
+
+Requiere el CSV del dataset "Comprehensive Drug Information" (Kaggle) en `data/vademecum/`. Ver comentario en `load_vademecum.py` para el nombre exacto de archivo esperado.
+
+```bash
+poetry run python load_vademecum.py
+```
+
+Debería terminar con `✅ Índice listo · 220 vectores en Qdrant/vademecum_medicamentos`.
 
 ## Correr el servidor
 
@@ -58,31 +70,32 @@ Abre **http://localhost:8000/docs** y prueba `POST /chat`:
 { "user_id": "test-1", "pregunta": "¿Hay alguna farmacia de turno en Providencia?" }
 ```
 
-Y para probar la memoria, un segundo turno **con el mismo `user_id`**:
+Segundo turno, **mismo `user_id`**, para probar memoria:
 
 ```json
 { "user_id": "test-1", "pregunta": "¿Y cuál es su dirección?" }
 ```
 
-Si el agente responde sin que vuelvas a mencionar Providencia, la memoria
-por `user_id` está funcionando.
+Pregunta de vademécum:
 
-Prueba también con un `user_id` distinto para confirmar que las
-conversaciones no se mezclan entre usuarios.
+```json
+{ "user_id": "test-1", "pregunta": "¿Para qué sirve el Aspirin?" }
+```
 
-## Próximos pasos (ramas)
+## Chunking del vademécum — estrategia y justificación
 
-Nota: no hay carpetas vacías "reservadas" para esto — cada una se crea recién
-en la rama donde se necesita, junto con el primer archivo real que la usa.
+1 fila del CSV = 1 chunk, sin splitting. A diferencia de un documento largo, cada fila ya es una unidad semántica completa y acotada (una ficha de medicamento) — trocearla arriesgaría separar el nombre del medicamento de sus efectos secundarios o indicaciones en chunks distintos.
 
-1. `feature/tool-minsal` — reemplazar el stub por la API real de MINSAL (timeout, normalización, fallback).
-2. `feature/rag-vademecum` — indexar el dataset de Kaggle en Qdrant y conectar la tool real (agrega `data/vademecum/`).
-3. `feature/guardrails` — guardrail robusto (no solo prompt) + pruebas adversarias (agrega `tests/adversarial/`).
-4. `feature/api-front` — front conversacional que consuma la API.
-5. `feature/deploy` — Dockerfile validado + despliegue cloud.
-6. Tests unitarios y notebooks de exploración: se agregan cuando surja el primer caso real que los necesite, no antes.
+## Idioma del vademécum
+
+El índice está en inglés (idioma original del dataset de Kaggle). La traducción al español ocurre solo en la respuesta final del LLM, no en el índice — así se evita que un error de traducción quede "enterrado" en el vector store y se repita en cada respuesta.
+
+## Próximos pasos
+
+1. Guardrails robustos: nodo de validación de entrada/salida (más allá del prompt actual) + set de pruebas adversarias (`tests/adversarial/`).
+2. Front conversacional que consuma la API.
+3. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica).
 
 ## Entregables de este trabajo
 
-Ver rúbrica del curso (7 criterios) — informe de seguridad/privacidad/calidad,
-matriz de riesgos, código + deploy, demo en vivo.
+Ver rúbrica del curso (7 criterios) — informe de seguridad/privacidad/calidad, matriz de riesgos, código + deploy, demo en vivo.
