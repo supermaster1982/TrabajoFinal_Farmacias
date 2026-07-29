@@ -11,10 +11,13 @@ la pena anotarlo en el informe como limitación conocida.
 import logging
 import os
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
+
+
 
 load_dotenv(override=True)
 
@@ -35,6 +38,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     respuesta: str
+
 
 
 app = FastAPI(
@@ -64,12 +68,12 @@ async def chat(request: ChatRequest, response: Response):
     except Exception:
         logger.exception("Fallo al responder la pregunta")
         raise HTTPException(status_code=502, detail="Fallo interno; revisa los logs del servidor.")
-    fin = datetime.now(timezone.utc)
+    fin = datetime.now()
     # print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
 
     # Header HTTP personalizado, visible en la pestaña "Headers" de /docs o
-    # en curl -i — para cruzar directo contra la hora que muestra Langfuse.
-    response.headers["X-Timestamp-UTC"] = fin.isoformat()
+    response.headers["X-Timestamp-Local"] = fin.strftime("%d-%m-%Y %H:%M")
+
 
     return ChatResponse(respuesta=respuesta)
 
