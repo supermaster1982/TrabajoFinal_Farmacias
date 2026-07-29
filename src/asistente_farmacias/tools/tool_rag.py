@@ -28,15 +28,15 @@ tool.
 import os
 
 from langchain_core.tools import tool
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from pydantic import BaseModel, Field
+
+from asistente_farmacias.resilience import invocar_con_fallback
 
 EMBED_MODEL = "text-embedding-3-large"
 EMBED_DIMS = 256
 COLLECTION = "vademecum_medicamentos"
-RERANK_MODEL = os.getenv("RERANK_MODEL", "gpt-5.4-mini")
 
 K_RETRIEVAL = 8   # candidatas iniciales por similitud (antes del filtro)
 THRESHOLD = 0.4   # descarta fichas con score de relevancia bajo esto
@@ -56,16 +56,15 @@ def _get_vector_store() -> QdrantVectorStore:
     return _vector_store
 
 
-class _RelevanceScore(BaseModel):
-    score: float = Field(..., description="Relevancia de 0 a 1 (0=irrelevante, 1=responde exacto).")
-
-
-def _puntuar_relevancia(pregunta: str, fichas: list) -> list[float]:
+def _puntuar_relevancia(pregunta: str, fichas: list, config: dict | None = None) -> list[float]:
     """Un LLM puntúa cada ficha recuperada, 0 a 1, según qué tan bien
-    responde a la pregunta real — no solo si comparte vocabulario."""
-    llm = ChatOpenAI(model=RERANK_MODEL, temperature=0)
-    llm_estructurado = llm.with_structured_output(_RelevanceScore)
+    responde a la pregunta real — no solo si comparte vocabulario.
+    Usa invocar_con_fallback: si el modelo principal falla (retirado,
+    caído), prueba automáticamente el siguiente de la cadena.
 
+    Usa texto plano (no with_structured_output) — ver la nota en
+    clinical_gate.py sobre por qué with_structured_output combinado con
+    contenido de medicamentos disparó falsos bloqueos de moderación."""
     prompt = """Evalúa qué tan relevante es esta ficha de medicamento para responder
 la pregunta del usuario. Usa esta rúbrica:
 - 0.0 Irrelevante: no tiene relación con lo preguntado.
@@ -78,12 +77,18 @@ Pregunta: {pregunta}
 
 Ficha: {ficha}
 
-Responde solo con el score."""
+Responde SOLO con el número (ej. "0.75"), nada más."""
 
     scores = []
     for ficha in fichas:
-        resultado = llm_estructurado.invoke(prompt.format(pregunta=pregunta, ficha=ficha.page_content))
-        scores.append(resultado.score)
+        resultado = invocar_con_fallback(
+            prompt.format(pregunta=pregunta, ficha=ficha.page_content), config=config
+        )
+        try:
+            score = float(resultado.content.strip().split()[0])
+        except (ValueError, IndexError):
+            score = 0.5  # valor neutro si no se pudo parsear
+        scores.append(score)
     return scores
 
 
