@@ -10,12 +10,13 @@ la pena anotarlo en el informe como limitación conocida.
 
 import logging
 import os
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
-load_dotenv(override=True) 
+load_dotenv(override=True)
 
 logger = logging.getLogger("asistente-farmacias")
 
@@ -54,13 +55,22 @@ def health():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, response: Response):
     """Responde una pregunta, manteniendo memoria por user_id."""
+    inicio = datetime.now(timezone.utc)
+    # print(f"🕐 [{inicio.isoformat()}] Pregunta de {request.user_id}: {request.pregunta}")
     try:
         respuesta = responder(request.user_id, request.pregunta)
     except Exception:
         logger.exception("Fallo al responder la pregunta")
         raise HTTPException(status_code=502, detail="Fallo interno; revisa los logs del servidor.")
+    fin = datetime.now(timezone.utc)
+    # print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
+
+    # Header HTTP personalizado, visible en la pestaña "Headers" de /docs o
+    # en curl -i — para cruzar directo contra la hora que muestra Langfuse.
+    response.headers["X-Timestamp-UTC"] = fin.isoformat()
+
     return ChatResponse(respuesta=respuesta)
 
 
