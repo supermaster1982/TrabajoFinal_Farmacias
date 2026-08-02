@@ -1,0 +1,347 @@
+/* ============================================================
+   asistente-farmacias — front conversacional
+   Tema: "farmacia de turno de noche" — fondo oscuro + acento
+   verde de cruz de farmacia (elemento distintivo del dominio).
+   ============================================================ */
+
+:root {
+  --bg: #0a1220;
+  --surface: #0f1c30;
+  --surface-hi: #16233c;
+  --border: #223050;
+  --text: #eef1f5;
+  --text-muted: #8b96ac;
+  --cross: #17c988;
+  --cross-glow: #4fe8ad;
+  --user-bubble: #1c3a55;
+  --danger: #e06a5f;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", -apple-system, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+  width: 100%;
+  max-width: 720px;
+  padding: 22px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cross-badge {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.cross-badge svg {
+  width: 100%;
+  height: 100%;
+}
+
+.cross-badge .glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--cross-glow) 0%, transparent 70%);
+  opacity: 0.35;
+  animation: pulse 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cross-badge .glow {
+    animation: none;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+.app-header h1 {
+  font-family: "Fraunces", serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.2px;
+}
+
+.app-header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---------- Barra de estado / configuración ---------- */
+
+.status-bar {
+  width: 100%;
+  max-width: 720px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.status-bar input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  width: 210px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  background: var(--text-muted);
+}
+
+.status-dot.is-ok {
+  background: var(--cross);
+}
+
+.status-dot.is-error {
+  background: var(--danger);
+}
+
+/* ---------- Chat ---------- */
+
+.chat-log {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--text-muted);
+  max-width: 420px;
+}
+
+.empty-state h2 {
+  font-family: "Fraunces", serif;
+  color: var(--text);
+  font-weight: 500;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--cross);
+  background: var(--surface-hi);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--cross);
+  outline-offset: 2px;
+}
+
+.msg {
+  max-width: 84%;
+  padding: 11px 15px;
+  border-radius: var(--radius);
+  line-height: 1.5;
+  font-size: 14.5px;
+  white-space: pre-wrap;
+}
+
+.msg--user {
+  align-self: flex-end;
+  background: var(--user-bubble);
+  border-bottom-right-radius: 4px;
+}
+
+.msg--assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.msg--assistant.is-blocked {
+  border-color: var(--cross);
+}
+
+.msg--error {
+  align-self: flex-start;
+  background: rgba(224, 106, 95, 0.12);
+  border: 1px solid var(--danger);
+  color: #f5c9c4;
+}
+
+.typing-indicator {
+  align-self: flex-start;
+  display: flex;
+  gap: 4px;
+  padding: 12px 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-bottom-left-radius: 4px;
+}
+
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: bounce 1.1s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ---------- Formulario de entrada ---------- */
+
+.chat-form {
+  width: 100%;
+  max-width: 720px;
+  padding: 14px 20px 20px;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-form textarea {
+  flex: 1;
+  resize: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.4;
+  max-height: 120px;
+}
+
+.chat-form textarea:focus-visible {
+  outline: 2px solid var(--cross);
+  outline-offset: 1px;
+}
+
+.chat-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.send-button {
+  background: var(--cross);
+  color: #06231a;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.send-button:hover {
+  background: var(--cross-glow);
+}
+
+.send-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.send-button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.disclaimer {
+  width: 100%;
+  max-width: 720px;
+  padding: 0 20px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}

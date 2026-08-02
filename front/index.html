@@ -1,445 +1,79 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Asistente de Farmacias y Medicamentos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  :root {
-    --bg: #0a1220;
-    --surface: #0f1c30;
-    --surface-2: #142038;
-    --surface-hi: #16233c;
-    --border: #223050;
-    --text: #eef1f5;
-    --text-muted: #8b96ac;
-    --cross: #17c988;
-    --cross-glow: #4fe8ad;
-    --user-bubble: #1c3a55;
-    --danger: #e06a5f;
-    --radius: 14px;
-  }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asistente de Farmacias y Medicamentos</title>
 
-  * { box-sizing: border-box; }
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 
-  html, body {
-    margin: 0;
-    height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', -apple-system, sans-serif;
-  }
-
-  body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  /* --- Header con la cruz de farmacia (elemento distintivo) --- */
-  header {
-    width: 100%;
-    max-width: 720px;
-    padding: 22px 20px 16px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .cross-badge {
-    position: relative;
-    width: 42px;
-    height: 42px;
-    flex-shrink: 0;
-  }
-
-  .cross-badge svg { width: 100%; height: 100%; }
-
-  .cross-badge .glow {
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--cross-glow) 0%, transparent 70%);
-    opacity: 0.35;
-    animation: pulse 3.2s ease-in-out infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .cross-badge .glow { animation: none; }
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 0.25; transform: scale(0.96); }
-    50% { opacity: 0.5; transform: scale(1.05); }
-  }
-
-  header h1 {
-    font-family: 'Fraunces', serif;
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0;
-    letter-spacing: 0.2px;
-  }
-
-  header p {
-    margin: 2px 0 0;
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-
-  /* --- Barra de estado / configuración --- */
-  .status-bar {
-    width: 100%;
-    max-width: 720px;
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .status-bar input {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 5px 9px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    width: 210px;
-  }
-
-  .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    display: inline-block; margin-right: 6px;
-    background: var(--text-muted);
-  }
-  .dot.ok { background: var(--cross); }
-  .dot.error { background: var(--danger); }
-
-  /* --- Chat --- */
-  main {
-    flex: 1;
-    width: 100%;
-    max-width: 720px;
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .empty-state {
-    margin: auto;
-    text-align: center;
-    color: var(--text-muted);
-    max-width: 420px;
-  }
-  .empty-state h2 {
-    font-family: 'Fraunces', serif;
-    color: var(--text);
-    font-weight: 500;
-    font-size: 17px;
-    margin-bottom: 6px;
-  }
-
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-top: 16px;
-  }
-  .chip {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 7px 13px;
-    font-size: 12.5px;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .chip:hover { border-color: var(--cross); background: var(--surface-hi); }
-  .chip:focus-visible { outline: 2px solid var(--cross); outline-offset: 2px; }
-
-  .msg {
-    max-width: 84%;
-    padding: 11px 15px;
-    border-radius: var(--radius);
-    line-height: 1.5;
-    font-size: 14.5px;
-    white-space: pre-wrap;
-  }
-
-  .msg.user {
-    align-self: flex-end;
-    background: var(--user-bubble);
-    border-bottom-right-radius: 4px;
-  }
-
-  .msg.assistant {
-    align-self: flex-start;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
-  }
-
-  .msg.assistant.blocked {
-    border-color: var(--cross);
-  }
-
-  .msg.error {
-    align-self: flex-start;
-    background: rgba(224, 106, 95, 0.12);
-    border: 1px solid var(--danger);
-    color: #f5c9c4;
-  }
-
-  .msg.assistant strong { color: var(--cross-glow); }
-
-  .typing {
-    align-self: flex-start;
-    display: flex;
-    gap: 4px;
-    padding: 12px 15px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    border-bottom-left-radius: 4px;
-  }
-  .typing span {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--text-muted);
-    animation: bounce 1.1s infinite ease-in-out;
-  }
-  .typing span:nth-child(2) { animation-delay: 0.15s; }
-  .typing span:nth-child(3) { animation-delay: 0.3s; }
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-    30% { transform: translateY(-4px); opacity: 1; }
-  }
-
-  /* --- Input --- */
-  form {
-    width: 100%;
-    max-width: 720px;
-    padding: 14px 20px 20px;
-    display: flex;
-    gap: 10px;
-    border-top: 1px solid var(--border);
-  }
-
-  textarea {
-    flex: 1;
-    resize: none;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    font-family: inherit;
-    font-size: 14.5px;
-    line-height: 1.4;
-    max-height: 120px;
-  }
-  textarea:focus-visible { outline: 2px solid var(--cross); outline-offset: 1px; }
-  textarea::placeholder { color: var(--text-muted); }
-
-  button[type="submit"] {
-    background: var(--cross);
-    color: #06231a;
-    border: none;
-    border-radius: var(--radius);
-    padding: 0 20px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  button[type="submit"]:hover { background: var(--cross-glow); }
-  button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
-  button[type="submit"]:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-
-  .disclaimer {
-    width: 100%;
-    max-width: 720px;
-    padding: 0 20px 14px;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-<header>
-  <div class="cross-badge">
-    <div class="glow" aria-hidden="true"></div>
-    <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="16" y="4" width="10" height="34" rx="2" fill="#17C988"/>
-      <rect x="4" y="16" width="34" height="10" rx="2" fill="#17C988"/>
-    </svg>
-  </div>
-  <div>
-    <h1>Asistente de Farmacias y Medicamentos</h1>
-    <p>Turnos en vivo (MINSAL) · Vademécum citado · No reemplaza evaluación médica</p>
-  </div>
-</header>
-
-<div class="status-bar">
-  <span><span class="dot" id="statusDot"></span><span id="statusText">Sin verificar conexión</span></span>
-  <input type="text" id="apiUrl" value="http://localhost:8000" spellcheck="false" aria-label="URL de la API" />
-</div>
-
-<main id="chat">
-  <div class="empty-state" id="emptyState">
-    <h2>¿En qué te puedo ayudar?</h2>
-    <p>Farmacias de turno, información de un medicamento, o ambas cosas — con memoria de la conversación.</p>
-    <div class="chips">
-      <button class="chip" type="button" data-q="¿Qué farmacia está de turno en Providencia?">Farmacia de turno en Providencia</button>
-      <button class="chip" type="button" data-q="¿Para qué sirve el ibuprofeno?">¿Para qué sirve el ibuprofeno?</button>
-      <button class="chip" type="button" data-q="¿Cuánto ibuprofeno debo tomar?">Probar el guardrail (pregunta de dosis)</button>
+  <header class="app-header">
+    <div class="cross-badge">
+      <div class="glow" aria-hidden="true"></div>
+      <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="16" y="4" width="10" height="34" rx="2" fill="#17C988" />
+        <rect x="4" y="16" width="34" height="10" rx="2" fill="#17C988" />
+      </svg>
     </div>
+    <div>
+      <h1>Asistente de Farmacias y Medicamentos</h1>
+      <p>Turnos en vivo (MINSAL) · Vademécum citado · No reemplaza evaluación médica</p>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <span>
+      <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+      <span id="statusText">Sin verificar conexión</span>
+    </span>
+    <input
+      type="text"
+      id="apiUrl"
+      value="http://localhost:8000"
+      spellcheck="false"
+      aria-label="URL de la API"
+    />
   </div>
-</main>
 
-<form id="chatForm">
-  <textarea id="pregunta" rows="1" placeholder="Escribe tu pregunta…" aria-label="Tu pregunta"></textarea>
-  <button type="submit" id="sendBtn">Enviar</button>
-</form>
-<p class="disclaimer">Este asistente informa; no diagnostica ni prescribe. Ante una urgencia, contacta a un profesional de salud.</p>
+  <main class="chat-log" id="chatLog" aria-live="polite" aria-label="Conversación">
+    <div class="empty-state" id="emptyState">
+      <h2>¿En qué te puedo ayudar?</h2>
+      <p>Farmacias de turno, información de un medicamento, o ambas cosas — con memoria de la conversación.</p>
+      <div class="chips">
+        <button class="chip" type="button" data-q="¿Qué farmacia está de turno en Providencia?">
+          Farmacia de turno en Providencia
+        </button>
+        <button class="chip" type="button" data-q="¿Para qué sirve el ibuprofeno?">
+          ¿Para qué sirve el ibuprofeno?
+        </button>
+        <button class="chip" type="button" data-q="¿Cuánto ibuprofeno debo tomar?">
+          Probar el guardrail (pregunta de dosis)
+        </button>
+      </div>
+    </div>
+  </main>
 
-<script>
-  const USER_ID_KEY = "asistente_farmacias_user_id";
-  let userId = localStorage.getItem(USER_ID_KEY);
-  if (!userId) {
-    userId = "web-" + crypto.randomUUID();
-    localStorage.setItem(USER_ID_KEY, userId);
-  }
+  <form class="chat-form" id="chatForm">
+    <textarea id="pregunta" rows="1" placeholder="Escribe tu pregunta…" aria-label="Tu pregunta"></textarea>
+    <button class="send-button" type="submit" id="sendButton">Enviar</button>
+  </form>
+  <p class="disclaimer">
+    Este asistente informa; no diagnostica ni prescribe. Ante una urgencia, contacta a un profesional de salud.
+  </p>
 
-  const chat = document.getElementById("chat");
-  const emptyState = document.getElementById("emptyState");
-  const form = document.getElementById("chatForm");
-  const textarea = document.getElementById("pregunta");
-  const sendBtn = document.getElementById("sendBtn");
-  const apiUrlInput = document.getElementById("apiUrl");
-  const statusDot = document.getElementById("statusDot");
-  const statusText = document.getElementById("statusText");
-
-  function apiUrl() {
-    return apiUrlInput.value.replace(/\/$/, "");
-  }
-
-  function addMessage(role, text, opts = {}) {
-    if (emptyState) emptyState.remove();
-    const div = document.createElement("div");
-    div.className = "msg " + role + (opts.blocked ? " blocked" : "");
-    div.textContent = text;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-    return div;
-  }
-
-  function addTyping() {
-    const div = document.createElement("div");
-    div.className = "typing";
-    div.id = "typingIndicator";
-    div.innerHTML = "<span></span><span></span><span></span>";
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-  }
-
-  function removeTyping() {
-    const el = document.getElementById("typingIndicator");
-    if (el) el.remove();
-  }
-
-  // Frase que devuelve el guardrail — si aparece, marcamos la burbuja
-  // distinto (borde verde) para que se note visualmente en la demo que
-  // el control de seguridad actuó, sin tener que explicarlo en palabras.
-  const GUARDRAIL_MARKER = "requiere evaluación profesional";
-
-  async function checkHealth() {
-    try {
-      const res = await fetch(apiUrl() + "/", { method: "GET" });
-      if (res.ok) {
-        statusDot.className = "dot ok";
-        statusText.textContent = "Conectado";
-      } else {
-        throw new Error("status " + res.status);
-      }
-    } catch (e) {
-      statusDot.className = "dot error";
-      statusText.textContent = "Sin conexión — revisa la URL o que el servidor esté corriendo";
-    }
-  }
-
-  async function enviarPregunta(pregunta) {
-    addMessage("user", pregunta);
-    addTyping();
-    sendBtn.disabled = true;
-
-    try {
-      const res = await fetch(apiUrl() + "/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, pregunta }),
-      });
-
-      removeTyping();
-
-      if (!res.ok) {
-        addMessage("error", "El servidor respondió con un error (" + res.status + "). Revisa los logs de la terminal.");
-        return;
-      }
-
-      const data = await res.json();
-      const esBloqueo = (data.respuesta || "").includes(GUARDRAIL_MARKER);
-      addMessage("assistant", data.respuesta, { blocked: esBloqueo });
-    } catch (e) {
-      removeTyping();
-      addMessage("error", "No se pudo conectar con " + apiUrl() + ". ¿Está corriendo el servidor? ¿La URL de arriba es correcta?");
-    } finally {
-      sendBtn.disabled = false;
-    }
-  }
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const pregunta = textarea.value.trim();
-    if (!pregunta) return;
-    textarea.value = "";
-    textarea.style.height = "auto";
-    enviarPregunta(pregunta);
-  });
-
-  textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      form.requestSubmit();
-    }
-  });
-
-  textarea.addEventListener("input", () => {
-    textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
-  });
-
-  document.querySelectorAll(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => enviarPregunta(chip.dataset.q));
-  });
-
-  apiUrlInput.addEventListener("change", checkHealth);
-  checkHealth();
-</script>
-
+  <script src="js/config.js"></script>
+  <script src="js/dom.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
