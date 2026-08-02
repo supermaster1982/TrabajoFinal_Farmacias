@@ -135,6 +135,14 @@ La tool no pasa el JSON crudo al LLM — se aplican 5 pasos: validar esquema/tim
   - No existe aún una ley específica de IA en Chile (Boletín 16.821-19 sigue en tramitación en el Senado).
   - El Código Sanitario regula el ejercicio de profesiones de salud — es la base legal detrás de la condición dura de no recomendar dosis ni tratamiento.
 
+### 6.1 Limitación conocida: no hay autenticación real
+
+`user_id` es hoy cualquier string que el cliente decida enviar — no hay login, token, ni verificación de identidad. Esto significa que, en teoría, cualquiera que conozca o adivine el `user_id` de otra persona podría leer el historial de esa conversación (memoria del checkpointer). Es una limitación aceptable para un proyecto educativo sin datos reales, pero **no sería aceptable en un despliegue con usuarios reales** sin resolverlo antes. Recomendación para una versión productiva: integrar un login externo (OAuth/SSO) que genere el `user_id`/`thread_id` de forma verificada en el servidor, no confiado ciegamente desde el cliente.
+
+### 6.2 Términos y condiciones
+
+El sistema no presenta aún un términos y condiciones explícito que delimite responsabilidad, uso permitido, y exclusiones (ej. "no reemplaza atención médica", "no debe usarse en una emergencia"). Es una pieza pendiente antes de cualquier publicación fuera del entorno educativo — se anota aquí como limitación, no como algo ya resuelto.
+
 ---
 
 ## 7. Matriz de riesgos
@@ -150,12 +158,22 @@ La tool no pasa el JSON crudo al LLM — se aplican 5 pasos: validar esquema/tim
 | 7 | Observabilidad (Langfuse Cloud) con delay de ingesta de varios minutos afecta la demo en vivo | Alta (observado repetidamente) | Bajo | Se usa LangSmith como observabilidad principal en la demo (instantáneo); Langfuse documentado como alternativa con esta limitación | Backend |
 | 8 | El re-rank del RAG agrega latencia sin garantía de mejora de calidad en todos los casos | Media | Bajo-Medio | Mini-eval cuantitativo documentado (sección 5.4); trade-off explícito, no asumido | Backend |
 | 9 | Credenciales expuestas accidentalmente en el repositorio | Baja | Crítico | .gitignore cubre .env; verificación manual de git status antes de cada push durante todo el desarrollo | Todo el equipo |
+| 10 | Costo escala sin control (cada pregunta dispara 2-4 llamadas a LLM: guarda entrada, agente, re-rank, guarda salida) | Media | Medio | Cadena de fallback prioriza modelos económicos (mini/nano); costo por request visible en Langfuse/LangSmith | Backend |
+| 11 | Ciberataque genérico (DoS, inyección de prompt, abuso de la API pública) | Baja-Media | Alto | Timeouts en todas las llamadas externas; CORS a restringir antes de producción; sin ejecución de comandos arbitrarios en ninguna tool | Backend |
+| 12 | El sistema sugiere o nombra un diagnóstico/enfermedad (no solo dosis) | Media | Alto | Guardrail extendido conceptualmente a diagnóstico (no solo dosis); pendiente agregar prueba adversaria explícita de este caso | Backend |
+| 13 | Al desplegar públicamente, la API de MINSAL podría limitar o bloquear el tráfico por volumen | Media | Alto | Cache corto ya previsto en diseño; documentar contacto/límites de uso de MINSAL antes del deploy final | Backend |
+| 14 | El sistema promueve indirectamente una marca comercial de medicamento | Baja-Media | Medio | Prompt no compara ni recomienda marcas; solo cita la ficha técnica recuperada | Backend |
+| 15 | Bucle no acotado del agente (múltiples llamadas a tools sin límite) | Baja | Medio (costo/latencia) | Pendiente: fijar límite explícito de iteraciones/recursion_limit en el grafo | Backend |
+| 16 | Recomendación que además interactúa con una alergia o contraindicación no declarada | Baja (bloqueado por guardrail) | Crítico | Mismo guardrail de dosis/tratamiento; pendiente prueba adversaria con contexto de alergia explícito | Backend |
+| 17 | Sin autenticación real: cualquiera puede usar el user_id de otra persona y leer su historial | Media | Alto (privacidad) | Documentado como limitación conocida (sección 6.1); recomendación de login externo antes de producción real | Backend |
+| 18 | Fuga del corpus completo del RAG (exponer el índice en vez de solo lo recuperado) | Baja | Medio | La tool solo retorna las fichas filtradas por relevancia (top 3); no existe endpoint que exponga el vector store crudo | Backend |
+| 19 | Falta de términos y condiciones explícitos de uso | Alta (aún no existen) | Medio-Alto | Pendiente — documentado en sección 6.2, a resolver antes de cualquier publicación real | Producto |
 
 ---
 
 ## 8. Limitaciones conocidas y próximos pasos
 
-- Front conversacional aún pendiente de construir.
+- Front conversacional construido (`front/index.html`) — pendiente conectarlo a una URL desplegada en la nube (hoy apunta a `localhost` por defecto).
 - Despliegue en la nube aún pendiente (localhost no acredita el criterio de deploy de la rúbrica).
 - El mini-eval de calidad (sección 5.4) usó solo 3 preguntas — un dataset de evaluación más grande daría mayor confianza estadística a la comparación sin_rerank vs con_rerank.
 - La cadena de resiliencia de modelos (sección 4) no está integrada aún en el agente principal (create_react_agent), solo en las guardas y el re-rank — quedaría como mejora futura extenderla al agente completo.
