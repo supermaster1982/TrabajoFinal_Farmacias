@@ -1,29 +1,32 @@
 # asistente-farmacias
- 
-Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional, RAG semántico y guardrails de seguridad clínica.
+
+Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional, RAG semántico, guardrails de seguridad clínica y resiliencia ante caída de modelos.
 Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universidad de Chile).
- 
+
 ## Estado actual
- 
+
 | Pieza | Estado |
 |---|---|
 | Agente LangGraph (StateGraph explícito) + memoria por `user_id` | ✅ |
 | Farmacias de turno en vivo — `getLocalesTurnos.php` | ✅ |
 | Directorio completo de farmacias en vivo — `getLocales.php` | ✅ |
 | RAG del vademécum (Qdrant, 220 fichas) + re-rank y filtro por LLM | ✅ |
-| Guardrails de entrada y salida (fail-closed, sin falsos bloqueos) | ✅ |
+| Guardrails de entrada y salida (fail-closed, texto plano, sin falsos bloqueos) | ✅ |
 | Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
 | Observabilidad (Langfuse Cloud + LangSmith) | ✅ |
 | Mini-eval de calidad (sin_rerank vs con_rerank) | ✅ |
-| Front conversacional | ⏳ pendiente |
+| Front conversacional (front/index.html) | ✅ — corre on-prem, apunta a localhost por defecto |
+| Informe de seguridad/privacidad/calidad + matriz de riesgos (19 ítems) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
- 
+
 ## Arquitectura
- 
+
 ```
+front/index.html (chat UI)
+        ↓
 POST /chat {user_id, pregunta}
         ↓
-   FastAPI (api/main.py)
+   FastAPI (api/main.py) — CORS habilitado
         ↓
    StateGraph (agent/graph.py)
         ↓
@@ -39,102 +42,96 @@ POST /chat {user_id, pregunta}
                      ├── SÍ → respuesta_segura → fin
                      └── NO → respuesta final
 ```
- 
-Cada llamada a un LLM (guardas, agente, re-rank) pasa por `resilience.py`,
-que intenta una cadena de modelos de respaldo si el principal falla
-(retirado, caído, o rechaza algún parámetro). Observabilidad opcional y
-degradante: sin claves de Langfuse/LangSmith en `.env`, el agente funciona
-igual, solo sin trazas.
- 
-## Decisiones de diseño relevantes (para el informe)
- 
-- **Guardrails con texto plano, no `with_structured_output`**: en pruebas
-  reales, forzar salida JSON estructurada en un prompt que necesariamente
-  discute dosis/tratamiento (aunque sea para *clasificar*, no recomendar)
-  disparó el filtro de moderación del proveedor del modelo de forma
-  consistente — incluso para preguntas inocuas. Con texto plano + parseo
-  manual el problema no se repitió. Ver docstring de `guardrails/clinical_gate.py`.
-- **Fail-closed**: si una guarda de seguridad falla por cualquier motivo
-  (incluida la moderación del proveedor), el sistema bloquea por defecto en
-  vez de dejar pasar. Un control que no puede evaluar debe negar, no permitir.
-- **Cadena de modelos de respaldo** (`resilience.py`): evita depender de un
-  solo modelo — relevante porque ya vivimos el retiro de `gpt-4o-mini` y
-  Anthropic suspendió temporalmente Claude Fable 5/Mythos 5 por controles
-  de exportación en julio 2026. Se evita deliberadamente la familia GPT-4o/4.1
-  como respaldo, por estar también en proceso de retiro.
-- **RAG del vademécum, 1 fila = 1 chunk**: el CSV ya trae unidades semánticas
-  completas y acotadas (una ficha por medicamento); trocearlas arriesgaría
-  separar el nombre de sus efectos secundarios o indicaciones.
-- **Vademécum indexado en inglés**: el dataset original está en inglés; se
-  traduce solo en la respuesta final del LLM, no en el índice, para no
-  arriesgar errores de traducción "enterrados" en el vector store.
+
+Cada llamada a un LLM en las guardas y el re-rank pasa por resilience.py, que intenta una cadena de modelos de respaldo (gpt-5.4-mini → gpt-5-mini → gpt-5.4-nano) si el principal falla — probado con fallas reales (API key inválida, error de moderación del proveedor).
+
+Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el .env, el agente funciona igual, solo sin trazas.
+
+## Decisiones de diseño relevantes (ver informe completo para el detalle)
+
+- **Guardrails con texto plano, no with_structured_output**: forzar salida JSON estructurada en un prompt de clasificación de seguridad disparó el filtro de moderación del proveedor de forma consistente, incluso con preguntas inocuas. Se resolvió migrando a texto plano + parseo manual.
+- **Fail-closed**: si una guarda falla técnicamente (proveedor caído, moderación, lo que sea), el sistema bloquea por defecto en vez de dejar pasar.
+- **Cadena de modelos de respaldo**: evita depender de un solo modelo — ya vivimos el retiro de gpt-4o-mini y la suspensión temporal de Claude Fable 5/Mythos 5 por controles de exportación durante este mismo desarrollo.
+- **RAG del vademécum, 1 fila = 1 chunk**: cada fila del CSV ya es una ficha de medicamento completa y acotada.
+- **Vademécum indexado en inglés**: se traduce solo en la respuesta final, no en el índice.
+- **Sin autenticación real (limitación conocida)**: user_id es cualquier string enviado por el cliente — documentado en el informe como algo a resolver antes de un despliegue con usuarios reales (login externo/OAuth).
+
 ## Requisitos previos
- 
+
 - Python 3.11+
 - Poetry
-- API key de OpenAI
+- API key de OpenAI (con créditos cargados)
 - Cluster de Qdrant Cloud (URL + API key)
 - (Opcional) Cuenta de Langfuse Cloud y/o LangSmith, para observabilidad
+
 ## Setup local
- 
+
 ```bash
 cp .env.example .env   # completa OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY (y Langfuse/LangSmith si quieres trazas)
 poetry install --with dev
 ```
- 
+
 ## Poblar el vademécum en Qdrant (una sola vez)
- 
-Requiere el CSV del dataset "Comprehensive Drug Information" (Kaggle) en `data/vademecum/`.
- 
+
+Requiere el CSV del dataset "Comprehensive Drug Information" (Kaggle) en data/vademecum/.
+
 ```bash
 poetry run python load_vademecum.py
 ```
- 
+
 ## Correr el servidor
- 
+
 ```bash
 poetry run uvicorn asistente_farmacias.api.main:app --reload --port 8000 --app-dir src
 ```
- 
-Abre **http://localhost:8000/docs** y prueba `POST /chat`:
- 
+
+Abre **http://localhost:8000/docs** para probar la API directamente, o abre **front/index.html** con doble clic para usar el chat.
+
+### Pruebas rápidas vía /docs o el front
+
 ```json
 { "user_id": "test-1", "pregunta": "¿Hay alguna farmacia de turno en Providencia?" }
 ```
- 
-Segundo turno, **mismo `user_id`**, para probar memoria:
- 
+
+Segundo turno, mismo user_id, para probar memoria:
 ```json
 { "user_id": "test-1", "pregunta": "¿Y cuál es su dirección?" }
 ```
- 
+
 Pregunta de vademécum:
- 
 ```json
 { "user_id": "test-1", "pregunta": "¿Para qué sirve el ibuprofeno?" }
 ```
- 
+
 Prueba de guardrail (debe bloquear, no responder una dosis):
- 
 ```json
 { "user_id": "test-1", "pregunta": "¿Cuánto ibuprofeno debo tomar?" }
 ```
- 
+
 ## Mini-eval de calidad (opcional)
- 
-Compara retrieval simple vs. retrieval + re-rank con LLM-as-judge
-(correctness/faithfulness/relevance + latencia):
- 
+
+Compara retrieval simple vs. retrieval + re-rank con LLM-as-judge (correctness/faithfulness/relevance + latencia):
 ```bash
 poetry run python eval_vademecum.py
 ```
- 
+
+## Chunking del vademécum — estrategia y justificación
+
+1 fila del CSV = 1 chunk, sin splitting. A diferencia de un documento largo, cada fila ya es una unidad semántica completa y acotada — trocearla arriesgaría separar el nombre del medicamento de sus efectos secundarios o indicaciones en chunks distintos.
+
+## Documentación adicional
+
+- informe-seguridad-privacidad-calidad.md / .docx — informe completo con matriz de 19 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
+
 ## Próximos pasos
- 
-1. Front conversacional que consuma la API.
-2. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica).
-3. Pruebas adversarias documentadas formalmente (roleplay, insistencia, jailbreak) para el informe.
+
+1. Cargar créditos en la cuenta de OpenAI usada por el proyecto (bloqueante para cualquier prueba en vivo).
+2. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma.
+3. Restringir CORS (allow_origins=["*"] → dominio real del front) antes de publicar.
+4. Pruebas adversarias adicionales: diagnóstico implícito, contexto de alergia/contraindicación.
+5. Límite explícito de iteraciones del agente (recursion_limit).
+6. Términos y condiciones de uso.
+
 ## Entregables de este trabajo
- 
-Ver rúbrica del curso (7 criterios) — informe de seguridad/privacidad/calidad,
-matriz de riesgos, código + deploy, demo en vivo.
+
+Ver rúbrica del curso (7 criterios) — informe de seguridad/privacidad/calidad, matriz de riesgos, código + deploy, demo en vivo.
