@@ -15,8 +15,8 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
 
 
 load_dotenv(override=True)
@@ -40,7 +40,6 @@ class ChatResponse(BaseModel):
     respuesta: str
 
 
-
 app = FastAPI(
     title="Asistente Informativo de Farmacias y Medicamentos",
     version="0.1.0-stage0",
@@ -49,6 +48,18 @@ app = FastAPI(
         "con tools STUB. Las integraciones reales (MINSAL, RAG) llegan en "
         "etapas siguientes."
     ),
+)
+
+# CORS: permite que el front (un .html abierto en el navegador, o servido
+# desde otro puerto) pueda llamar a esta API. "*" es suficientemente
+# permisivo para desarrollo on-prem; si en algún momento se despliega en
+# la nube, conviene restringir allow_origins al dominio real del front,
+# no dejarlo abierto a cualquier origen en producción.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -72,8 +83,8 @@ async def chat(request: ChatRequest, response: Response):
     # print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
 
     # Header HTTP personalizado, visible en la pestaña "Headers" de /docs o
+    # en curl -i
     response.headers["X-Timestamp-Local"] = fin.strftime("%d-%m-%Y %H:%M")
-
 
     return ChatResponse(respuesta=respuesta)
 
