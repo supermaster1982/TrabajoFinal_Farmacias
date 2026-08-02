@@ -11,13 +11,11 @@ la pena anotarlo en el informe como limitación conocida.
 import logging
 import os
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
 
 load_dotenv(override=True)
 
@@ -28,7 +26,7 @@ if not os.getenv("OPENAI_API_KEY"):
 
 # Import diferido a después de load_dotenv() / la validación de arriba,
 # para que el error de env var salga ANTES de intentar construir el agente.
-from asistente_farmacias.agent.graph import responder  # noqa: E402
+from asistente_farmacias.agent.graph import GuardaNoDisponibleError, responder  # noqa: E402
 
 
 class ChatRequest(BaseModel):
@@ -73,18 +71,24 @@ def health():
 async def chat(request: ChatRequest, response: Response):
     """Responde una pregunta, manteniendo memoria por user_id."""
     inicio = datetime.now(timezone.utc)
-    # print(f"🕐 [{inicio.isoformat()}] Pregunta de {request.user_id}: {request.pregunta}")
+    print(f"🕐 [{inicio.isoformat()}] Pregunta de {request.user_id}: {request.pregunta}")
     try:
         respuesta = responder(request.user_id, request.pregunta)
+    except GuardaNoDisponibleError as e:
+        # No es un rechazo real del guardrail — es una falla técnica que,
+        # por diseño (fail-closed), bloqueó la respuesta. Se reporta como
+        # un error real (503), no como si fuera una respuesta normal.
+        logger.warning(f"Guarda no disponible: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         logger.exception("Fallo al responder la pregunta")
         raise HTTPException(status_code=502, detail="Fallo interno; revisa los logs del servidor.")
-    fin = datetime.now()
-    # print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
+    fin = datetime.now(timezone.utc)
+    print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
 
     # Header HTTP personalizado, visible en la pestaña "Headers" de /docs o
-    # en curl -i
-    response.headers["X-Timestamp-Local"] = fin.strftime("%d-%m-%Y %H:%M")
+    # en curl -i — para cruzar directo contra la hora que muestra Langfuse.
+    response.headers["X-Timestamp-UTC"] = fin.isoformat()
 
     return ChatResponse(respuesta=respuesta)
 

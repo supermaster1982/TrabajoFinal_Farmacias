@@ -44,7 +44,16 @@
       dom.addMessage("assistant", data.respuesta, { blocked: wasBlocked });
     } catch (error) {
       dom.removeTypingIndicator();
-      if (error.status) {
+      if (error.status === 503) {
+        // Falla técnica del guardrail (proveedor caído, credenciales
+        // inválidas, etc.) — NO es un rechazo de contenido real, así que
+        // se muestra como error honesto, no como una respuesta normal.
+        dom.addMessage(
+          "error",
+          "⚠️ El control de seguridad no está disponible en este momento (falla del proveedor del modelo). " +
+            "Por seguridad, no se procesó tu pregunta. Intenta de nuevo en un momento."
+        );
+      } else if (error.status) {
         dom.addMessage("error", `El servidor respondió con un error (${error.status}). Revisa los logs de la terminal.`);
       } else {
         dom.addMessage(

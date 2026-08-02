@@ -92,9 +92,11 @@ class EstadoConversacion(TypedDict, total=False):
     pregunta: str
     bloqueado_en_entrada: bool
     razon_entrada: str
+    fallo_tecnico_entrada: bool
     respuesta_agente: str
     bloqueado_en_salida: bool
     razon_salida: str
+    fallo_tecnico_salida: bool
     respuesta_final: str
 
 
@@ -110,14 +112,25 @@ def _lf_config() -> dict:
 def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
     try:
         evaluacion = evaluar_entrada(estado["pregunta"], config=_lf_config())
-        return {"bloqueado_en_entrada": evaluacion.es_peligroso, "razon_entrada": evaluacion.razon}
+        print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
+        return {
+            "bloqueado_en_entrada": evaluacion.es_peligroso,
+            "razon_entrada": evaluacion.razon,
+            "fallo_tecnico_entrada": False,
+        }
     except Exception as e:
         # Fail-closed: si la guarda misma falla (ej. el filtro de moderación
-        # del proveedor del LLM bloqueó la llamada porque la pregunta era
-        # demasiado explícita), tratamos esto como "peligroso" por defecto.
-        # Un control de seguridad que no puede evaluar debe negar, no dejar
-        # pasar — documentar este caso en el informe/matriz de riesgos.
-        return {"bloqueado_en_entrada": True, "razon_entrada": f"Guarda de entrada falló ({e!r}); fail-closed."}
+        # del proveedor del LLM, o un error de la API como credenciales
+        # inválidas), NO dejamos pasar la respuesta — pero tampoco fingimos
+        # que fue un bloqueo de contenido real. Marcamos fallo_tecnico_entrada
+        # para que responder() lo distinga y lo reporte como un error de
+        # verdad, no como un rechazo del guardrail.
+        print(f"⚠️ gate_entrada FALLÓ (fail-closed): {e!r}")
+        return {
+            "bloqueado_en_entrada": True,
+            "razon_entrada": f"Guarda de entrada falló ({e!r}); fail-closed.",
+            "fallo_tecnico_entrada": True,
+        }
 
 
 def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
@@ -131,9 +144,19 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
     try:
         evaluacion = evaluar_salida(estado["respuesta_agente"], config=_lf_config())
-        return {"bloqueado_en_salida": evaluacion.es_peligroso, "razon_salida": evaluacion.razon}
+        print(f"🚦 gate_salida · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
+        return {
+            "bloqueado_en_salida": evaluacion.es_peligroso,
+            "razon_salida": evaluacion.razon,
+            "fallo_tecnico_salida": False,
+        }
     except Exception as e:
-        return {"bloqueado_en_salida": True, "razon_salida": f"Guarda de salida falló ({e!r}); fail-closed."}
+        print(f"⚠️ gate_salida FALLÓ (fail-closed): {e!r}")
+        return {
+            "bloqueado_en_salida": True,
+            "razon_salida": f"Guarda de salida falló ({e!r}); fail-closed.",
+            "fallo_tecnico_salida": True,
+        }
 
 
 def _nodo_respuesta_segura(estado: EstadoConversacion) -> EstadoConversacion:
@@ -176,6 +199,14 @@ def _construir_grafo():
 _app = _construir_grafo()
 
 
+class GuardaNoDisponibleError(Exception):
+    """Se lanza cuando una guarda de seguridad no pudo evaluar por una falla
+    técnica (proveedor caído, credenciales inválidas, etc.) — distinto de
+    un bloqueo real por contenido. main.py la traduce a un error HTTP
+    honesto (503), en vez de devolver el mensaje de rechazo como si la
+    petición hubiera sido evaluada y rechazada normalmente."""
+
+
 def responder(user_id: str, pregunta: str) -> str:
     """Punto de entrada usado por la API (main.py). Corre el grafo completo:
     guarda de entrada → agente → guarda de salida.
@@ -190,9 +221,12 @@ def responder(user_id: str, pregunta: str) -> str:
     if _LANGFUSE_ACTIVO and _langfuse_client:
         _langfuse_client.flush()
 
+    fallo_tecnico = resultado.get("fallo_tecnico_entrada", False) or resultado.get("fallo_tecnico_salida", False)
+    if fallo_tecnico:
+        raise GuardaNoDisponibleError(
+            "El control de seguridad no pudo evaluar la pregunta en este momento "
+            "(falla del proveedor del modelo). Por seguridad, no se procesó la "
+            "solicitud. Intenta de nuevo en un momento."
+        )
+
     return resultado["respuesta_final"]
-
-
-
-
-

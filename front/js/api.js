@@ -20,8 +20,8 @@ window.App.api = (function () {
 
   /**
    * Envía una pregunta al endpoint /chat.
-   * Lanza un error tipado (con .status si es un error HTTP) para que
-   * quien llama decida cómo mostrarlo, sin acoplar esta función a la UI.
+   * Lanza un error tipado (con .status y .detail) para que quien llama
+   * decida cómo mostrarlo, sin acoplar esta función a la UI.
    */
   async function sendMessage(apiUrl, userId, pregunta) {
     const response = await fetch(normalizeUrl(apiUrl) + "/chat", {
@@ -33,6 +33,13 @@ window.App.api = (function () {
     if (!response.ok) {
       const error = new Error("La API respondió con status " + response.status);
       error.status = response.status;
+      // FastAPI manda el mensaje de HTTPException como {"detail": "..."}
+      try {
+        const body = await response.json();
+        error.detail = body.detail;
+      } catch (_parseError) {
+        error.detail = null;
+      }
       throw error;
     }
 
