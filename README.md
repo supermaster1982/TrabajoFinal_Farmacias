@@ -15,7 +15,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 | Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
 | Observabilidad (Langfuse Cloud + LangSmith) | ✅ |
 | Mini-eval de calidad (sin_rerank vs con_rerank) | ✅ |
-| Front conversacional (front/index.html) | ✅ — corre on-prem, apunta a localhost por defecto |
+| Front conversacional (front/index.html) | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (19 ítems) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
 
@@ -85,7 +85,25 @@ poetry run python load_vademecum.py
 poetry run uvicorn asistente_farmacias.api.main:app --reload --port 8000 --app-dir src
 ```
 
-Abre **http://localhost:8000/docs** para probar la API directamente, o abre **front/index.html** con doble clic para usar el chat.
+Abre **http://localhost:8000/docs** para probar la API directamente.
+
+## Correr el front
+
+**No abras `front/index.html` con doble clic** — algunos navegadores (Safari) y sistemas (macOS, si el proyecto está dentro de Escritorio/Documentos/Descargas) bloquean que una página abierta como archivo local (`file://`) cargue sus propios `.css`/`.js`, y vas a ver la página sin estilos o errores `ERR_ACCESS_DENIED` en la consola. No es un bug del proyecto — es una restricción de seguridad del navegador/sistema operativo.
+
+**Sirve la carpeta con un mini-servidor local** (con el backend ya corriendo en otra terminal, como arriba):
+
+```bash
+cd front
+python3 -m http.server 5500
+```
+
+Y abre en el navegador:
+```
+http://localhost:5500
+```
+
+Necesitas **las dos terminales corriendo al mismo tiempo** (backend en `:8000`, front en `:5500`).
 
 ### Pruebas rápidas vía /docs o el front
 
