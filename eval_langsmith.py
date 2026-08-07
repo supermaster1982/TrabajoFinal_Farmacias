@@ -176,7 +176,9 @@ def _make_criterion_evaluator(key: str, description: str, *, solo_informativas: 
 
 correctness_evaluator = _make_criterion_evaluator(
     "correctness",
-    "La respuesta coincide en contenido con la respuesta de referencia (mismo hecho, aunque esté en otras palabras).",
+    "La respuesta incluye el hecho central de la referencia (mismo hecho, aunque esté en otras "
+    "palabras o con detalle adicional). Agregar información correcta de más NO debe penalizarse "
+    "— solo penaliza si contradice la referencia o si OMITE el hecho central.",
     solo_informativas=True,
 )
 
