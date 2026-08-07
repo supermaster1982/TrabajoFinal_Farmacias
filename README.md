@@ -160,13 +160,11 @@ Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Exp
 
 ## Próximos pasos
 
-1. Cargar créditos en la cuenta de OpenAI usada por el proyecto (bloqueante para cualquier prueba en vivo) — *ya resuelto en esta sesión, mantener como recordatorio si se rota de cuenta*.
-2. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma.
-3. Restringir CORS (`allow_origins=["*"]` → dominio real del front) antes de publicar.
-4. Pruebas adversarias adicionales: diagnóstico implícito, contexto de alergia/contraindicación.
-5. Límite explícito de iteraciones del agente (`recursion_limit`).
-6. Términos y condiciones de uso.
-7. Fusionar `feature/rag-nodos-explicitos` a `main` una vez validado en la demo.
+1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma.
+2. Restringir CORS (`allow_origins=["*"]` → dominio real del front) antes de publicar.
+3. Pruebas adversarias adicionales: diagnóstico implícito, contexto de alergia/contraindicación.
+4. Límite explícito de iteraciones del agente (`recursion_limit`).
+5. Términos y condiciones de uso.
 
 ## Entregables de este trabajo
 
