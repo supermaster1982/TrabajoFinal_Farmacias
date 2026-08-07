@@ -108,7 +108,7 @@ Abre **http://localhost:8000/docs** para probar la API directamente.
 
 ```bash
 cd front
-python3 -m http.server 5500
+python -m http.server 5500
 ```
 
 Y abre en el navegador: http://localhost:5500
