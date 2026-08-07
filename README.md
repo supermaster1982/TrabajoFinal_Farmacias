@@ -48,13 +48,14 @@ Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que 
 
 Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.env`, el agente funciona igual, solo sin trazas.
 
-## Mejoras recientes (rama `feature/rag-nodos-explicitos`)
+## Mejoras recientes
 
 - **Sub-grafo del RAG con nodos explícitos** (`retrieve → rerank → filter` en `tools/rag_subgrafo.py`), visible y anidado en Langfuse/LangSmith en vez de una sola función opaca.
 - **Fix de grounding**: el agente ya no completa con conocimiento propio cuando una tool falla — antes, si el RAG fallaba, el modelo "rellenaba" con lo que sabía de memoria sobre el medicamento, lo cual rompe el requisito de que la respuesta esté basada solo en lo recuperado. Se corrigió con una instrucción explícita en el `SYSTEM_PROMPT`.
 - **Fix de serialización**: `TypeError: Type is not msgpack serializable: CallbackManager` al pasar el `config` de observabilidad dentro del estado del grafo — corregido pasándolo como parámetro del nodo (`nodo_rerank(estado, config)`), como espera LangGraph.
-- **Re-rank paralelizado** (`ThreadPoolExecutor`) — de ~14s a ~1-2s cuando está activo, en vez de puntuar las candidatas una por una en secuencia.
+- **Re-rank paralelizado** (`ThreadPoolExecutor`) — medido con `eval_langsmith.py`: **latencia P50 bajó de ~14,8s a ~5,1s** (casi 3x más rápido), comparando la misma corrida de evaluación antes/después.
 - **Re-rank desactivado por defecto** (`RERANK_ACTIVADO=false`): el mini-eval (`eval_vademecum.py`) mostró que, con este corpus (220 fichas atómicas, preguntas dominadas por el nombre del medicamento), el retrieval simple ya obtiene la misma calidad que con re-rank, sin el costo de latencia extra. Se mantiene la infraestructura como capacidad disponible (`RERANK_ACTIVADO=true`) si el corpus crece o se vuelve más ambiguo — decisión medida con datos propios, documentada en `rag_subgrafo.py`.
+- **Iteración sobre el propio evaluador**: el evaluador `correctness` de `eval_langsmith.py` dio un falso negativo (penalizó una respuesta correcta por tener información adicional que la referencia no exigía). Se ajustó el criterio para no penalizar información adicional correcta — evidencia de que los evaluadores LLM-as-judge también necesitan revisión, no son verdad absoluta.
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
