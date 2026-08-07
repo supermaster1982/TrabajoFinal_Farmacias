@@ -27,6 +27,7 @@ función), antes de decidir si vale la pena el cambio.
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import TypedDict
 
 from langchain_core.runnables import RunnableConfig
@@ -44,6 +45,20 @@ COLLECTION = "vademecum_medicamentos"
 K_RETRIEVAL = 8
 THRESHOLD = 0.4
 K_FINAL = 3
+
+# --- Flag: re-rank activado/desactivado -------------------------------------
+# DESACTIVADO por defecto. Justificación (medida, no asumida):
+#   El mini-eval (eval_vademecum.py) comparó sin_rerank vs con_rerank sobre
+#   3 preguntas de vademécum: AMBAS versiones obtuvieron 1.00 en
+#   correctness/faithfulness/relevance — sin diferencia de calidad medible.
+#   Con un corpus chico y muy estructurado (220 fichas atómicas, 1
+#   medicamento = 1 unidad clara) y preguntas dominadas por el nombre del
+#   medicamento (señal casi inequívoca para el embedding), el retrieval
+#   simple ya acierta sin necesitar una segunda pasada de puntuación LLM.
+#   El re-rank sí puede justificarse en el futuro si el corpus crece mucho,
+#   se vuelve más ambiguo/solapado, o las preguntas dejan de nombrar el
+#   medicamento directamente — por eso queda como flag, no eliminado.
+RERANK_ACTIVADO = os.getenv("RERANK_ACTIVADO", "false").lower() == "true"
 
 _RERANK_PROMPT = """Evalúa qué tan relevante es esta ficha de medicamento para responder
 la pregunta del usuario. Usa esta rúbrica:
@@ -87,19 +102,36 @@ def nodo_retrieve(estado: RagState) -> RagState:
 def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
     """`config` como segundo parámetro: LangGraph lo inyecta automáticamente
     en tiempo de ejecución (viene del invoke() de más abajo) — NO vive en
-    el estado, así que no rompe la serialización."""
-    puntuadas = []
-    for ficha in estado["candidatas"]:
+    el estado, así que no rompe la serialización.
+
+    Si RERANK_ACTIVADO es False (default), este nodo NO llama al LLM —
+    le asigna score=1.0 a todas las candidatas, preservando el orden que ya
+    trae similarity_search (retrieval simple, degradación intencional, ver
+    justificación junto a RERANK_ACTIVADO más arriba).
+
+    Cuando SÍ está activado, las llamadas al LLM corren EN PARALELO
+    (ThreadPoolExecutor), no en secuencia — con 8 candidatas, esto reduce
+    la latencia de ~8x el tiempo de una llamada a ~1x."""
+
+    candidatas = estado["candidatas"]
+
+    if not RERANK_ACTIVADO:
+        return {"puntuadas": [(ficha, 1.0) for ficha in candidatas]}
+
+    def _puntuar_una(ficha) -> float:
         try:
             resultado = invocar_con_fallback(
                 _RERANK_PROMPT.format(pregunta=estado["pregunta"], ficha=ficha.page_content),
                 config=config,
             )
-            score = float(resultado.content.strip().split()[0])
+            return float(resultado.content.strip().split()[0])
         except (ValueError, IndexError, RuntimeError):
-            score = 0.5  # valor neutro si falla el parseo o todos los modelos fallan
-        puntuadas.append((ficha, score))
-    return {"puntuadas": puntuadas}
+            return 0.5  # valor neutro si falla el parseo o todos los modelos fallan
+
+    with ThreadPoolExecutor(max_workers=max(len(candidatas), 1)) as executor:
+        scores = list(executor.map(_puntuar_una, candidatas))
+
+    return {"puntuadas": list(zip(candidatas, scores))}
 
 
 def nodo_filter(estado: RagState) -> RagState:
