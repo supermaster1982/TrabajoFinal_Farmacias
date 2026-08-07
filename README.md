@@ -23,6 +23,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 
 ![Arquitectura del asistente](docs/arquitectura.svg)
 
+```
 front/index.html (chat UI)
 ↓
 POST /chat {user_id, pregunta}
@@ -43,6 +44,7 @@ retrieve → rerank (flag) → filter
 gate_salida (¿la respuesta igual recomendó algo?)
 ├── SÍ → respuesta_segura → fin
 └── NO → respuesta final
+```
 
 Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que intenta una cadena de modelos de respaldo (`gpt-5.4-mini → gpt-5-mini → gpt-5.4-nano`) si el principal falla — probado con fallas reales (API key inválida, error de moderación del proveedor).
 
