@@ -73,8 +73,12 @@ SYSTEM_PROMPT = (
     "comuna, intenta también 'consultar_farmacias_registradas' para esa "
     "misma comuna y ofrece esa información como alternativa, dejando claro "
     "que esas farmacias pueden no estar abiertas ahora mismo. "
-    "No inventes información que las herramientas no te dieron. Nunca "
-    "recomiendas medicamentos, dosis, ni tratamientos."
+    "No inventes información que las herramientas no te dieron. "
+    "Nunca recomiendas medicamentos, dosis, ni tratamientos. "
+    "Si una tool falla o no puede consultar datos, informa la falla con "
+    "claridad y ofrece reintentar o derivar — NUNCA completes la respuesta "
+    "usando tu propio conocimiento general como reemplazo, aunque lo "
+    "sepas; la respuesta debe basarse únicamente en lo que la herramienta devolvió."
 )
 
 _checkpointer = MemorySaver()

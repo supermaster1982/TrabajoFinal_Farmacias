@@ -9,16 +9,27 @@ cuando la pregunta es de medicamentos, no cuando es de farmacias. Ponerlos
 como nodos del grafo principal forzaría ese camino fijo para TODAS las
 preguntas. Como sub-grafo invocado solo por la tool de RAG, se ejecuta
 únicamente cuando el agente decide llamar a esa tool — y si le pasamos el
-mismo callback de Langfuse, igual queda visible y anidado en la traza.
+mismo callback de Langfuse/LangSmith, igual queda visible y anidado en la
+traza.
+
+BUG encontrado y corregido: la primera versión guardaba el `config` (con
+los callbacks de observabilidad) DENTRO del estado del grafo, para que
+nodo_rerank pudiera reenviarlo. Eso rompía todo con
+`TypeError: Type is not msgpack serializable: CallbackManager` — LangGraph
+necesita poder serializar el estado (para trazas/checkpoints), y un
+CallbackManager no es serializable. La forma correcta: declarar `config`
+como SEGUNDO PARÁMETRO de la función del nodo — LangGraph lo inyecta solo,
+en tiempo de ejecución, sin que tenga que pasar por el estado.
 
 Experimento en rama feature/rag-nodos-explicitos: comparar cómo se ve esto
-en Langfuse contra la versión anterior (todo en una sola función), antes
-de decidir si vale la pena el cambio.
+en Langfuse/LangSmith contra la versión anterior (todo en una sola
+función), antes de decidir si vale la pena el cambio.
 """
 
 import os
 from typing import TypedDict
 
+from langchain_core.runnables import RunnableConfig
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langgraph.graph import END, START, StateGraph
@@ -73,8 +84,10 @@ def nodo_retrieve(estado: RagState) -> RagState:
     return {"candidatas": candidatas}
 
 
-def nodo_rerank(estado: RagState) -> RagState:
-    config = estado.get("_config")  # ver nota en invocar_subgrafo() más abajo
+def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
+    """`config` como segundo parámetro: LangGraph lo inyecta automáticamente
+    en tiempo de ejecución (viene del invoke() de más abajo) — NO vive en
+    el estado, así que no rompe la serialización."""
     puntuadas = []
     for ficha in estado["candidatas"]:
         try:
@@ -110,17 +123,12 @@ def _construir_subgrafo():
 _subgrafo = _construir_subgrafo()
 
 
-def invocar_subgrafo(pregunta: str, config: dict | None = None) -> list:
+def invocar_subgrafo(pregunta: str, config: RunnableConfig | None = None) -> list:
     """Punto de entrada que usa tool_rag.py. Devuelve [(ficha, score), ...]
     ya filtradas y ordenadas.
 
-    Nota sobre el config: se lo pasamos al invoke() del sub-grafo (para que
-    LangGraph propague el callback de Langfuse a los nodos), y ADEMÁS lo
-    guardamos dentro del estado (_config) para que nodo_rerank pueda
-    reenviarlo a invocar_con_fallback — LangGraph no propaga automáticamente
-    el config a llamadas manuales de LLM hechas DENTRO de un nodo, solo a
-    los Runnables que se invocan con ese mismo config explícito.
-    """
-    estado_inicial = {"pregunta": pregunta, "_config": config}
-    resultado = _subgrafo.invoke(estado_inicial, config=config)
+    El config se pasa SOLO como parámetro de invoke() — LangGraph lo
+    propaga a cada nodo automáticamente (incluido nodo_rerank, que lo
+    recibe como segundo argumento). No se guarda en el estado inicial."""
+    resultado = _subgrafo.invoke({"pregunta": pregunta}, config=config)
     return resultado["filtradas"]
