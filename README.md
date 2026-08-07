@@ -15,7 +15,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 | Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
 | Observabilidad (Langfuse Cloud + LangSmith) | ✅ |
 | Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith) | ✅ |
-| Front conversacional (`front/index.html`) | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
+| Front conversacional (`front/index.html`) | ✅ — servir con `python -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (19 ítems) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
 
