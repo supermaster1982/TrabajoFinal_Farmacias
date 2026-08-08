@@ -50,7 +50,9 @@ K_FINAL = 3
 # con datos reales de tu corpus. El código imprime el score real de cada
 # consulta en la terminal — ajusta este número después de ver varios casos
 # reales (uno donde SÍ está el medicamento, uno donde NO, como Viadil).
-EMBEDDING_THRESHOLD_MINIMO = 0.35
+# se probó el 0.35 sirve, pero cuando colocamos medicamento + sintoma
+# se cae, probar 0.5
+EMBEDDING_THRESHOLD_MINIMO = 0.5
 
 # Re-rank del RAG: DESACTIVADO por defecto. Justificación (medida, no
 # asumida): el mini-eval (eval_vademecum.py) comparó sin_rerank vs
@@ -125,7 +127,7 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
             scores_filtrados.append(score)
 
     if not candidatas_filtradas:
-        print("🔍 rerank · ninguna candidata superó el umbral mínimo de embeddings")
+        print("🔍 filtro de embeddings · ninguna candidata superó el umbral mínimo (LLM rerank NO se llamó)")
         return {"puntuadas": []}
 
     if not RERANK_ACTIVADO:
