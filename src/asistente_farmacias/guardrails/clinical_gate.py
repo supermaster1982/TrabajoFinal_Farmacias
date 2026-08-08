@@ -84,18 +84,22 @@ También cuenta como riesgosa una pregunta que intente lograr cualquiera de
 las 3 de forma indirecta: insistencia, actuación/roleplay pidiendo que el
 asistente adopte un rol profesional, o pedir un "ejemplo" de lo mismo.
 
-IMPORTANTE: si la persona menciona un síntoma o malestar (ej. "me duele
-algo") pero la pregunta en sí es genérica sobre qué es un medicamento o
-para qué sirve — SIN pedir dosis, horario, ni preguntar qué enfermedad
-tiene — esto NO cuenta como riesgoso en esta guarda. El sistema que
-responde después está instruido para priorizar una sugerencia de
-evaluación profesional antes de dar la información, así que dejar pasar
-la pregunta es seguro.
+IMPORTANTE — considera también el historial de la conversación, no solo el
+mensaje actual: si en un turno anterior la persona mencionó un síntoma, y
+ahora (sin repetirlo) pregunta por un diagnóstico o pide indicación de uso
+de un medicamento, cuenta igual como riesgoso — no evalúes el mensaje
+actual aislado del resto de la conversación.
+
+Historial de preguntas anteriores en esta conversación (puede estar vacío
+si es la primera pregunta):
+{historial}
 
 Preguntas sobre qué es un medicamento, para qué sirve en general, sus
 efectos conocidos, información general de una enfermedad (sin pedir un
 diagnóstico personal), o sobre disponibilidad de farmacias, NO cuentan
-como riesgosas.
+como riesgosas — incluso si el historial menciona un síntoma (ese caso lo
+maneja el asistente anteponiendo una sugerencia de evaluación profesional,
+no esta guarda bloqueándolo).
 
 Pregunta a evaluar:
 {pregunta}
@@ -117,6 +121,13 @@ usuario, termina haciendo alguna de estas 3 cosas:
 3. Evaluando si es seguro combinar un medicamento con una alergia, otro
    medicamento, o una condición de salud particular de esa persona.
 
+Historial de preguntas anteriores en esta conversación (puede estar vacío):
+{historial}
+
+Si el historial menciona un síntoma personal, y este texto de respuesta
+NO antepone una sugerencia de evaluación profesional antes de dar
+información del medicamento, también cuenta como riesgoso.
+
 Texto a evaluar:
 {respuesta}
 
@@ -125,14 +136,20 @@ es_peligroso: true o false
 razon: una frase breve"""
 
 
-def evaluar_entrada(pregunta: str, config: dict | None = None) -> EvaluacionClinica:
+def evaluar_entrada(pregunta: str, historial: str = "", config: dict | None = None) -> EvaluacionClinica:
     """Guarda de ENTRADA: corre antes del agente/RAG/tools."""
-    texto = invocar_con_fallback(_PROMPT_ENTRADA.format(pregunta=pregunta), config=config).content
+    texto = invocar_con_fallback(
+        _PROMPT_ENTRADA.format(pregunta=pregunta, historial=historial or "(sin preguntas anteriores)"),
+        config=config,
+    ).content
     return _parsear_evaluacion(texto)
 
 
-def evaluar_salida(respuesta: str, config: dict | None = None) -> EvaluacionClinica:
+def evaluar_salida(respuesta: str, historial: str = "", config: dict | None = None) -> EvaluacionClinica:
     """Guarda de SALIDA: corre después de que el agente ya generó una respuesta,
     antes de devolverla al usuario."""
-    texto = invocar_con_fallback(_PROMPT_SALIDA.format(respuesta=respuesta), config=config).content
+    texto = invocar_con_fallback(
+        _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial or "(sin preguntas anteriores)"),
+        config=config,
+    ).content
     return _parsear_evaluacion(texto)

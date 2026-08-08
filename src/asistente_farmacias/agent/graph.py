@@ -20,13 +20,14 @@ Por qué dos guardas (entrada y salida) y no solo una: ver docstring de
 """
 
 import os
+import re
 from typing import TypedDict
 
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import ToolMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
 
 from asistente_farmacias.tools.tool_minsal import (
@@ -81,13 +82,14 @@ SYSTEM_PROMPT = (
     "claridad y ofrece reintentar o derivar — NUNCA completes la respuesta "
     "usando tu propio conocimiento general como reemplazo, aunque lo "
     "sepas; la respuesta debe basarse únicamente en lo que la herramienta devolvió. "
-    "Si la persona menciona un síntoma o malestar personal (dolor, molestia, "
-    "etc.) en su pregunta, SIEMPRE empieza tu respuesta sugiriendo que "
-    "consulte a un profesional de salud para evaluar ese síntoma, ANTES de "
-    "dar cualquier información general del medicamento por el que haya "
-    "preguntado — la sugerencia de evaluación va primero, la información "
-    "general después, nunca al revés, y nunca le digas que ese medicamento "
-    "es lo indicado para su síntoma."
+    "Si la persona mencionó un síntoma o malestar personal (dolor, molestia, "
+    "etc.) en cualquier momento de esta conversación (turno actual o "
+    "anterior), incluye UNA SOLA VEZ, al principio de tu respuesta, una "
+    "frase breve sugiriendo que consulte a un profesional de salud para "
+    "evaluar ese síntoma — no repitas ni reformules esa sugerencia más de "
+    "una vez en la misma respuesta. Después de esa única frase, puedes dar "
+    "la información general del medicamento que te pregunten, sin decir "
+    "que ese medicamento es lo indicado para su síntoma."
 )
 
 _checkpointer = MemorySaver()
@@ -122,10 +124,57 @@ def _lf_config() -> dict:
     la demo no puede mostrar evidencia de que el bloqueo realmente ocurrió."""
     return {"callbacks": [_langfuse_handler]} if _langfuse_handler else {}
 
+def _obtener_preguntas_previas(user_id: str, max_preguntas: int = 4) -> str:
+    """Lee el checkpointer del agente para ese user_id y devuelve las
+    últimas preguntas del usuario en esta conversación (sin contar la
+    actual, que todavía no se procesó). Devuelve "" si es el primer turno
+    o si algo falla — nunca debe romper el flujo principal por esto.
+
+    Por qué esto importa: sin esto, si alguien dice "me duele el estómago"
+    en el turno 1 y recién en el turno 3 pregunta por un medicamento
+    específico (sin repetir el síntoma), las guardas evaluaban SOLO el
+    mensaje actual y no tenían forma de conectar ambos turnos."""
+    try:
+        config = {"configurable": {"thread_id": user_id}}
+        checkpoint = _checkpointer.get(config)
+        if not checkpoint:
+            return ""
+        mensajes = checkpoint.get("channel_values", {}).get("messages", [])
+        preguntas = [m.content for m in mensajes if isinstance(m, HumanMessage)]
+        preguntas_recientes = preguntas[-max_preguntas:]
+        if not preguntas_recientes:
+            return ""
+        return "\n".join(f"- {p}" for p in preguntas_recientes)
+    except Exception as e:
+        print(f"⚠️ No se pudo leer el historial previo ({e!r}); se evalúa sin ese contexto.")
+        return ""
+    
+def _colapsar_texto_duplicado(texto: str) -> str:
+    """A veces el modelo repite literalmente el mismo texto dos veces
+    seguidas en su respuesta (bug de comportamiento del LLM con este
+    prompt, no de nuestro código — persiste incluso pidiéndole
+    explícitamente 'una sola vez'). Esta función detecta y recorta esa
+    repetición exacta, sin tocar el resto del texto ni afectar respuestas
+    normales sin duplicación."""
+    texto = texto.strip()
+
+    # Caso 1: el mensaje completo son 2 copias idénticas seguidas.
+    match = re.fullmatch(r"(?P<frase>.+?)\s+(?P=frase)\s*", texto, re.DOTALL)
+    if match:
+        return match.group("frase").strip()
+
+    # Caso 2: solo la primera oración se repite al principio.
+    match = re.match(r"^(?P<frase>.{10,300}?[.!?])\s+(?P=frase)\s*", texto)
+    if match:
+        resto = texto[match.end():].strip()
+        return f"{match.group('frase')} {resto}".strip() if resto else match.group("frase")
+
+    return texto
 
 def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
+    historial = _obtener_preguntas_previas(estado["user_id"])
     try:
-        evaluacion = evaluar_entrada(estado["pregunta"], config=_lf_config())
+        evaluacion = evaluar_entrada(estado["pregunta"], historial=historial, config=_lf_config())
         print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
         return {
             "bloqueado_en_entrada": evaluacion.es_peligroso,
@@ -133,12 +182,6 @@ def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
             "fallo_tecnico_entrada": False,
         }
     except Exception as e:
-        # Fail-closed: si la guarda misma falla (ej. el filtro de moderación
-        # del proveedor del LLM, o un error de la API como credenciales
-        # inválidas), NO dejamos pasar la respuesta — pero tampoco fingimos
-        # que fue un bloqueo de contenido real. Marcamos fallo_tecnico_entrada
-        # para que responder() lo distinga y lo reporte como un error de
-        # verdad, no como un rechazo del guardrail.
         print(f"⚠️ gate_entrada FALLÓ (fail-closed): {e!r}")
         return {
             "bloqueado_en_entrada": True,
@@ -173,12 +216,14 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
 
     mensajes = resultado["messages"]
     contexto_tools = [m.content for m in mensajes if isinstance(m, ToolMessage)]
-    return {"respuesta_agente": mensajes[-1].content, "contexto_tools": contexto_tools}
+    respuesta_limpia = _colapsar_texto_duplicado(mensajes[-1].content)
+    return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools}
 
 
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
+    historial = _obtener_preguntas_previas(estado["user_id"])
     try:
-        evaluacion = evaluar_salida(estado["respuesta_agente"], config=_lf_config())
+        evaluacion = evaluar_salida(estado["respuesta_agente"], historial=historial, config=_lf_config())
         print(f"🚦 gate_salida · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
         return {
             "bloqueado_en_salida": evaluacion.es_peligroso,
