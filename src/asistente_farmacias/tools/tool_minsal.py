@@ -7,28 +7,18 @@ según la intención de la pregunta (routing por LLM, no por código):
   - consultar_farmacias_de_turno       -> getLocalesTurnos.php  (¿qué está ABIERTA ahora?)
   - consultar_farmacias_registradas    -> getLocales.php        (directorio completo, esté o no de turno)
 
-Schemas reales confirmados manualmente el 2026-07-20 (pegando un registro de
-ejemplo desde el navegador — el sitio bloquea fetch automático tipo bot):
-
-getLocalesTurnos.php (fecha en formato YYYY-MM-DD):
-{
-  "fecha": "2026-07-20", "local_id": "20", "fk_region": "6", "fk_comuna": "59", "fk_localidad": "17",
-  "local_nombre": "SALCOBRAND", "comuna_nombre": "LIMACHE", "localidad_nombre": "LIMACHE",
-  "local_direccion": "URMENETA 68", "funcionamiento_hora_apertura": "09:00:00",
-  "funcionamiento_hora_cierre": "23:00:00", "local_telefono": "+5624223300 anexo 5300",
-  "local_lat": "-32.98...", "local_lng": "-71.27...", "funcionamiento_dia": "lunes"
-}
-
-getLocales.php (¡MISMO esquema, pero "fecha" en formato DD-MM-YY, distinto!):
-{
-  "fecha": "20-07-26", "local_id": "3", "local_nombre": "CRUZ VERDE", "comuna_nombre": "LIMACHE",
-  "localidad_nombre": "LIMACHE", "local_direccion": "URMENETA 99",
-  "funcionamiento_hora_apertura": "08:30:00", "funcionamiento_hora_cierre": "18:30:00",
-  "local_telefono": "+56332415940", "local_lat": "...", "local_lng": "...",
-  "funcionamiento_dia": "lunes", "fk_region": "6", "fk_comuna": "59", "fk_localidad": "17"
-}
+CACHÉ (nuevo): el enunciado del trabajo pide explícitamente "timeout, cache
+corto y fallback rotulado" — ya teníamos el timeout, faltaba el caché. Se
+cachea la respuesta CRUDA de cada endpoint (no por comuna — la API devuelve
+TODAS las comunas en cada llamada, así que cachear por endpoint es el punto
+natural) por 15 minutos, igual al ejemplo del enunciado ("cache 15 min").
+Esto evita golpear la API real en cada pregunta — importante tanto para no
+abusar de un servicio público gratuito, como para la latencia percibida
+por el usuario (una consulta repetida en la ventana de 15 min responde
+casi instantáneo, sin esperar la llamada HTTP real).
 """
 
+import time
 import unicodedata
 
 import requests
@@ -37,6 +27,12 @@ from langchain_core.tools import tool
 URL_TURNOS = "https://midas.minsal.cl/farmacia_v2/WS/getLocalesTurnos.php"
 URL_LOCALES = "https://midas.minsal.cl/farmacia_v2/WS/getLocales.php"
 TIMEOUT_SEGUNDOS = 5
+CACHE_TTL_SEGUNDOS = 15 * 60  # 15 minutos, mismo valor que el ejemplo del enunciado
+
+# Caché en memoria del proceso: {url: (timestamp_guardado, registros)}
+# Se pierde al reiniciar el servidor — aceptable para este proyecto (mismo
+# criterio que la memoria conversacional, que también vive en RAM).
+_cache: dict[str, tuple[float, list]] = {}
 
 
 def _sin_tildes_mayus(texto: str) -> str:
@@ -52,8 +48,18 @@ def _es_turno_nocturno(apertura: str, cierre: str) -> bool:
 
 
 def _consultar_api_minsal(url: str) -> tuple[list | None, str | None]:
-    """Hace el GET con timeout y devuelve (registros, None) o (None, mensaje_error).
-    Centraliza el manejo de errores para no repetirlo en cada tool."""
+    """Hace el GET con timeout, usando caché de 15 min. Devuelve
+    (registros, None) o (None, mensaje_error). Centraliza el manejo de
+    errores para no repetirlo en cada tool."""
+    ahora = time.time()
+
+    if url in _cache:
+        guardado_en, registros_cacheados = _cache[url]
+        if ahora - guardado_en < CACHE_TTL_SEGUNDOS:
+            return registros_cacheados, None
+        # Expiró: se saca del caché y sigue al fetch real más abajo.
+        del _cache[url]
+
     try:
         respuesta = requests.get(url, timeout=TIMEOUT_SEGUNDOS)
         respuesta.raise_for_status()
@@ -67,6 +73,8 @@ def _consultar_api_minsal(url: str) -> tuple[list | None, str | None]:
 
     if not isinstance(registros, list):
         return None, "La API de MINSAL devolvió un formato inesperado."
+
+    _cache[url] = (ahora, registros)
     return registros, None
 
 
