@@ -89,22 +89,35 @@ EVAL_DATASET = cargar_dataset()
 
 
 def subir_dataset(client: Client) -> str:
-    """Sube el dataset a LangSmith, o reusa el existente si ya se subió antes."""
-    if client.has_dataset(dataset_name=DATASET_NAME):
-        print(f"Usando dataset existente: {DATASET_NAME}")
-        return DATASET_NAME
+    """Crea el dataset si no existe, y SINCRONIZA las preguntas de eval/*.md
+    contra lo que ya está subido a LangSmith — agrega solo las que faltan
+    (por texto de pregunta), sin duplicar las que ya estaban.
 
-    dataset = client.create_dataset(
-        DATASET_NAME, description="Preguntas de vademécum (informativas) + adversarias (deben ser rechazadas)."
-    )
-    examples = [
-        {"inputs": {"pregunta": item["pregunta"]}, "outputs": {"esperado": item["esperado"], "tipo": item["tipo"]}}
-        for item in EVAL_DATASET
-    ]
-    client.create_examples(dataset_id=dataset.id, examples=examples)
-    print(f"Dataset '{DATASET_NAME}' creado con {len(examples)} ejemplos")
+    Antes, esta función solo revisaba "¿existe el dataset?" y si la
+    respuesta era sí, nunca volvía a comparar contenido — agregar una
+    pregunta nueva al .md no tenía ningún efecto en corridas siguientes."""
+    if not client.has_dataset(dataset_name=DATASET_NAME):
+        client.create_dataset(
+            DATASET_NAME,
+            description="Preguntas de vademécum (informativas) + adversarias (deben ser rechazadas).",
+        )
+        print(f"Dataset '{DATASET_NAME}' creado")
+
+    dataset = client.read_dataset(dataset_name=DATASET_NAME)
+    ya_subidas = {ex.inputs.get("pregunta") for ex in client.list_examples(dataset_id=dataset.id)}
+
+    nuevas = [item for item in EVAL_DATASET if item["pregunta"] not in ya_subidas]
+    if nuevas:
+        examples = [
+            {"inputs": {"pregunta": item["pregunta"]}, "outputs": {"esperado": item["esperado"], "tipo": item["tipo"]}}
+            for item in nuevas
+        ]
+        client.create_examples(dataset_id=dataset.id, examples=examples)
+        print(f"Se agregaron {len(nuevas)} pregunta(s) nueva(s) al dataset (encontradas en eval/*.md, no estaban en LangSmith aún)")
+    else:
+        print(f"Dataset '{DATASET_NAME}' ya tiene las {len(EVAL_DATASET)} preguntas de eval/*.md — nada que sincronizar")
+
     return DATASET_NAME
-
 
 # ============================================================================
 # 2. FUNCIÓN OBJETIVO — el sistema real que se evalúa (agente completo)

@@ -5,25 +5,25 @@ explícitos, en vez de vivir "escondidos" dentro de una sola función de tool.
 Por qué un SUB-grafo, y no meter estos 3 pasos en el grafo PRINCIPAL
 (agent/graph.py): el grafo principal tiene que elegir entre 3 herramientas
 (2 de MINSAL + esta de RAG) — retrieve/rerank/filter solo tienen sentido
-cuando la pregunta es de medicamentos, no cuando es de farmacias. Ponerlos
-como nodos del grafo principal forzaría ese camino fijo para TODAS las
-preguntas. Como sub-grafo invocado solo por la tool de RAG, se ejecuta
-únicamente cuando el agente decide llamar a esa tool — y si le pasamos el
-mismo callback de Langfuse/LangSmith, igual queda visible y anidado en la
-traza.
+cuando la pregunta es de medicamentos, no cuando es de farmacias.
 
-BUG encontrado y corregido: la primera versión guardaba el `config` (con
-los callbacks de observabilidad) DENTRO del estado del grafo, para que
-nodo_rerank pudiera reenviarlo. Eso rompía todo con
-`TypeError: Type is not msgpack serializable: CallbackManager` — LangGraph
-necesita poder serializar el estado (para trazas/checkpoints), y un
-CallbackManager no es serializable. La forma correcta: declarar `config`
-como SEGUNDO PARÁMETRO de la función del nodo — LangGraph lo inyecta solo,
-en tiempo de ejecución, sin que tenga que pasar por el estado.
-
-Experimento en rama feature/rag-nodos-explicitos: comparar cómo se ve esto
-en Langfuse/LangSmith contra la versión anterior (todo en una sola
-función), antes de decidir si vale la pena el cambio.
+Historial de fixes reales encontrados durante el desarrollo:
+1. TypeError de serialización: el config de observabilidad NO puede vivir
+   en el estado del grafo (rompe con CallbackManager no serializable) —
+   se pasa como parámetro del nodo, LangGraph lo inyecta solo.
+2. Re-rank paralelizado (ThreadPoolExecutor): de ~8x el tiempo de una
+   llamada a ~1x, sin cambiar el costo en tokens.
+3. RERANK_ACTIVADO=false por defecto: el mini-eval no mostró mejora de
+   calidad medible con este corpus (220 fichas atómicas).
+4. Filtro de similitud mínima de embeddings (este cambio): sin re-rank
+   LLM, TODAS las candidatas recibían score=1.0 sin ninguna discriminación
+   real — cuando el medicamento preguntado NO existe en el corpus (ej.
+   "Viadil", marca chilena ausente del dataset internacional), el sistema
+   igual devolvía el "menos malo" de los candidatos como si fuera la
+   respuesta correcta (ej. entregó info de Venlafaxina para una pregunta
+   sobre Viadil). Este filtro usa el score REAL de similitud de coseno de
+   Qdrant (gratis, sin LLM) para descartar candidatas que ni remotamente
+   se parecen a la pregunta, incluso con el re-rank LLM apagado.
 """
 
 import os
@@ -46,18 +46,21 @@ K_RETRIEVAL = 8
 THRESHOLD = 0.4
 K_FINAL = 3
 
-# --- Flag: re-rank activado/desactivado -------------------------------------
-# DESACTIVADO por defecto. Justificación (medida, no asumida):
-#   El mini-eval (eval_vademecum.py) comparó sin_rerank vs con_rerank sobre
-#   3 preguntas de vademécum: AMBAS versiones obtuvieron 1.00 en
-#   correctness/faithfulness/relevance — sin diferencia de calidad medible.
-#   Con un corpus chico y muy estructurado (220 fichas atómicas, 1
-#   medicamento = 1 unidad clara) y preguntas dominadas por el nombre del
-#   medicamento (señal casi inequívoca para el embedding), el retrieval
-#   simple ya acierta sin necesitar una segunda pasada de puntuación LLM.
-#   El re-rank sí puede justificarse en el futuro si el corpus crece mucho,
-#   se vuelve más ambiguo/solapado, o las preguntas dejan de nombrar el
-#   medicamento directamente — por eso queda como flag, no eliminado.
+# EMBEDDING_THRESHOLD_MINIMO: valor de partida razonable, NO calibrado aún
+# con datos reales de tu corpus. El código imprime el score real de cada
+# consulta en la terminal — ajusta este número después de ver varios casos
+# reales (uno donde SÍ está el medicamento, uno donde NO, como Viadil).
+EMBEDDING_THRESHOLD_MINIMO = 0.35
+
+# Re-rank del RAG: DESACTIVADO por defecto. Justificación (medida, no
+# asumida): el mini-eval (eval_vademecum.py) comparó sin_rerank vs
+# con_rerank sobre 3 preguntas de vademécum — AMBAS versiones obtuvieron
+# 1.00 en correctness/faithfulness/relevance, sin diferencia de calidad
+# medible. Con un corpus chico y muy estructurado (220 fichas atómicas) y
+# preguntas dominadas por el nombre del medicamento (señal casi inequívoca
+# para el embedding), el retrieval simple ya acierta sin necesitar una
+# segunda pasada de puntuación LLM. Se mantiene como flag disponible si el
+# corpus crece o se vuelve más ambiguo.
 RERANK_ACTIVADO = os.getenv("RERANK_ACTIVADO", "false").lower() == "true"
 
 _RERANK_PROMPT = """Evalúa qué tan relevante es esta ficha de medicamento para responder
@@ -89,34 +92,44 @@ def _get_vector_store() -> QdrantVectorStore:
 class RagState(TypedDict, total=False):
     pregunta: str
     candidatas: list
+    scores_embedding: list[float]
     puntuadas: list  # [(ficha, score), ...]
     filtradas: list  # [(ficha, score), ...] — el resultado final
 
 
 def nodo_retrieve(estado: RagState) -> RagState:
     vector_store = _get_vector_store()
-    candidatas = vector_store.similarity_search(estado["pregunta"], k=K_RETRIEVAL)
-    return {"candidatas": candidatas}
+    resultados = vector_store.similarity_search_with_score(estado["pregunta"], k=K_RETRIEVAL)
+    candidatas = [doc for doc, score in resultados]
+    scores_embedding = [score for doc, score in resultados]
+    print(f"🔍 retrieve · scores de embeddings: {[round(s, 3) for s in scores_embedding]}")
+    return {"candidatas": candidatas, "scores_embedding": scores_embedding}
 
 
 def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
     """`config` como segundo parámetro: LangGraph lo inyecta automáticamente
-    en tiempo de ejecución (viene del invoke() de más abajo) — NO vive en
-    el estado, así que no rompe la serialización.
+    en tiempo de ejecución — NO vive en el estado, así que no rompe la
+    serialización.
 
-    Si RERANK_ACTIVADO es False (default), este nodo NO llama al LLM —
-    le asigna score=1.0 a todas las candidatas, preservando el orden que ya
-    trae similarity_search (retrieval simple, degradación intencional, ver
-    justificación junto a RERANK_ACTIVADO más arriba).
-
-    Cuando SÍ está activado, las llamadas al LLM corren EN PARALELO
-    (ThreadPoolExecutor), no en secuencia — con 8 candidatas, esto reduce
-    la latencia de ~8x el tiempo de una llamada a ~1x."""
-
+    Primero aplica el filtro de similitud mínima de embeddings (siempre
+    activo, gratis, sin LLM). Recién después, si RERANK_ACTIVADO=true,
+    hace el re-rank LLM en paralelo sobre lo que sobrevivió ese filtro."""
     candidatas = estado["candidatas"]
+    scores_embedding = estado["scores_embedding"]
+
+    candidatas_filtradas = []
+    scores_filtrados = []
+    for ficha, score in zip(candidatas, scores_embedding):
+        if score >= EMBEDDING_THRESHOLD_MINIMO:
+            candidatas_filtradas.append(ficha)
+            scores_filtrados.append(score)
+
+    if not candidatas_filtradas:
+        print("🔍 rerank · ninguna candidata superó el umbral mínimo de embeddings")
+        return {"puntuadas": []}
 
     if not RERANK_ACTIVADO:
-        return {"puntuadas": [(ficha, 1.0) for ficha in candidatas]}
+        return {"puntuadas": list(zip(candidatas_filtradas, scores_filtrados))}
 
     def _puntuar_una(ficha) -> float:
         try:
@@ -126,12 +139,12 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
             )
             return float(resultado.content.strip().split()[0])
         except (ValueError, IndexError, RuntimeError):
-            return 0.5  # valor neutro si falla el parseo o todos los modelos fallan
+            return 0.5
 
-    with ThreadPoolExecutor(max_workers=max(len(candidatas), 1)) as executor:
-        scores = list(executor.map(_puntuar_una, candidatas))
+    with ThreadPoolExecutor(max_workers=max(len(candidatas_filtradas), 1)) as executor:
+        scores = list(executor.map(_puntuar_una, candidatas_filtradas))
 
-    return {"puntuadas": list(zip(candidatas, scores))}
+    return {"puntuadas": list(zip(candidatas_filtradas, scores))}
 
 
 def nodo_filter(estado: RagState) -> RagState:
@@ -157,10 +170,6 @@ _subgrafo = _construir_subgrafo()
 
 def invocar_subgrafo(pregunta: str, config: RunnableConfig | None = None) -> list:
     """Punto de entrada que usa tool_rag.py. Devuelve [(ficha, score), ...]
-    ya filtradas y ordenadas.
-
-    El config se pasa SOLO como parámetro de invoke() — LangGraph lo
-    propaga a cada nodo automáticamente (incluido nodo_rerank, que lo
-    recibe como segundo argumento). No se guarda en el estado inicial."""
+    ya filtradas y ordenadas."""
     resultado = _subgrafo.invoke({"pregunta": pregunta}, config=config)
     return resultado["filtradas"]

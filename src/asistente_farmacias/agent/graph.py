@@ -79,7 +79,14 @@ SYSTEM_PROMPT = (
     "Si una tool falla o no puede consultar datos, informa la falla con "
     "claridad y ofrece reintentar o derivar — NUNCA completes la respuesta "
     "usando tu propio conocimiento general como reemplazo, aunque lo "
-    "sepas; la respuesta debe basarse únicamente en lo que la herramienta devolvió."
+    "sepas; la respuesta debe basarse únicamente en lo que la herramienta devolvió. "
+    "Si la persona menciona un síntoma o malestar personal (dolor, molestia, "
+    "etc.) en su pregunta, SIEMPRE empieza tu respuesta sugiriendo que "
+    "consulte a un profesional de salud para evaluar ese síntoma, ANTES de "
+    "dar cualquier información general del medicamento por el que haya "
+    "preguntado — la sugerencia de evaluación va primero, la información "
+    "general después, nunca al revés, y nunca le digas que ese medicamento "
+    "es lo indicado para su síntoma."
 )
 
 _checkpointer = MemorySaver()

@@ -69,18 +69,33 @@ def _parsear_evaluacion(texto: str) -> EvaluacionClinica:
 # del proveedor en las pruebas.
 _PROMPT_ENTRADA = """Eres un analista de seguridad. Tu tarea es clasificar, no responder.
 
-Evalúa si esta pregunta de un usuario busca que un asistente determine una
-cantidad, pauta, o indicación de uso de un medicamento para el caso
-particular de esa persona (en vez de pedir información general o de
-referencia sobre el medicamento).
+Evalúa si esta pregunta de un usuario busca alguna de estas 3 cosas:
 
-También cuenta como riesgosa una pregunta que intente lograr lo mismo de
-forma indirecta: insistencia, actuación/roleplay pidiendo que el asistente
-adopte un rol profesional, o pedir un "ejemplo" de lo mismo.
+1. Que el asistente determine una cantidad, pauta, horario, o indicación de
+   uso de un medicamento para el caso particular de esa persona.
+2. Que el asistente le diga qué enfermedad o condición tiene, a partir de
+   síntomas que describió (diagnóstico implícito) — aunque no mencione
+   ningún medicamento.
+3. Que el asistente evalúe si es seguro combinar un medicamento con una
+   alergia, otro medicamento, o una condición de salud particular de esa
+   persona (interacción o contraindicación personalizada).
+
+También cuenta como riesgosa una pregunta que intente lograr cualquiera de
+las 3 de forma indirecta: insistencia, actuación/roleplay pidiendo que el
+asistente adopte un rol profesional, o pedir un "ejemplo" de lo mismo.
+
+IMPORTANTE: si la persona menciona un síntoma o malestar (ej. "me duele
+algo") pero la pregunta en sí es genérica sobre qué es un medicamento o
+para qué sirve — SIN pedir dosis, horario, ni preguntar qué enfermedad
+tiene — esto NO cuenta como riesgoso en esta guarda. El sistema que
+responde después está instruido para priorizar una sugerencia de
+evaluación profesional antes de dar la información, así que dejar pasar
+la pregunta es seguro.
 
 Preguntas sobre qué es un medicamento, para qué sirve en general, sus
-efectos conocidos, o sobre disponibilidad de farmacias, NO cuentan como
-riesgosas.
+efectos conocidos, información general de una enfermedad (sin pedir un
+diagnóstico personal), o sobre disponibilidad de farmacias, NO cuentan
+como riesgosas.
 
 Pregunta a evaluar:
 {pregunta}
@@ -92,9 +107,15 @@ razon: una frase breve"""
 _PROMPT_SALIDA = """Eres un analista de seguridad. Tu tarea es clasificar, no responder.
 
 Evalúa si este texto, que un asistente está a punto de mostrarle a un
-usuario, termina indicando una cantidad, pauta, o indicación de uso
-dirigida a esa persona en particular — a diferencia de solo citar un dato
-de referencia de una ficha técnica (lo segundo NO es riesgoso).
+usuario, termina haciendo alguna de estas 3 cosas:
+
+1. Indicando una cantidad, pauta, o indicación de uso dirigida a esa
+   persona en particular (a diferencia de solo citar un dato de referencia
+   de una ficha técnica — eso NO es riesgoso).
+2. Nombrando o sugiriendo qué enfermedad o condición tiene esa persona, a
+   partir de síntomas que describió (diagnóstico implícito).
+3. Evaluando si es seguro combinar un medicamento con una alergia, otro
+   medicamento, o una condición de salud particular de esa persona.
 
 Texto a evaluar:
 {respuesta}
