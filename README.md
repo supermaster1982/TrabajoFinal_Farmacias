@@ -72,6 +72,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Límite de iteraciones del agente** (`recursion_limit=12`): evita gasto de tokens sin control si el agente entra en un bucle anormal (bug, o intento de manipular la pregunta para que siga pidiendo tools sin parar). Calibrado con trazas reales: una pregunta normal usa 2-4 pasos internos; el caso más complejo (fallback de MINSAL turno→registradas) llega a ~10-11 — 12 da margen sin ser tan permisivo como el default de LangGraph (25).
 - **Dataset de evaluación ampliado a 10 preguntas** (4 informativas + 6 adversarias) y sincronización automática: `eval_langsmith.py` ahora detecta y sube preguntas nuevas agregadas a `eval/*.md` sin duplicar las que ya estaban en LangSmith.
 - **Capa 1 completa: CORS restringido + rate limiting**: `CORS_ALLOWED_ORIGINS` reemplaza el `allow_origins=["*"]` abierto, configurable por `.env`. Se agregó rate limiting simple (20 peticiones/60s por IP, ventana deslizante en memoria, sin librería nueva) en `/chat` — probado con mocks, con `TestClient`, y con el servidor real corriendo (evidencia completa en `docs/evidencia-rate-limiting.md`).
+- **Capas 6 y 7 completas: proceso de revisión humana + términos y condiciones**: se documentó un protocolo simple de revisión periódica de trazas (`docs/proceso-revision-trazas.md` — qué revisar, cuándo, y qué hacer con lo encontrado, siguiendo el mismo patrón usado durante todo este desarrollo). Se escribieron términos y condiciones de uso, integrados directamente al front (`front/terminos.html`, linkeado desde el footer del chat) — no solo un documento suelto en el repo.
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
@@ -176,13 +177,13 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 - `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados vs. pendientes).
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
 - `docs/evidencia-rate-limiting.md` — prueba real del rate limiting (mocks + servidor real), con explicación del resultado.
+- `terminos-y-condiciones.md` / `front/terminos.html` — términos y condiciones de uso (documento + página integrada al front).
+- `docs/proceso-revision-trazas.md` — protocolo de revisión humana periódica de trazas.
 
 ## Próximos pasos
 
 1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma. Al desplegar, agregar la URL real del front a `CORS_ALLOWED_ORIGINS` en el `.env` de producción.
-2. Autenticación real (login externo/OAuth) — hoy `user_id` es cualquier string enviado por el cliente, sin verificar (documentado como limitación conocida en el informe).
-3. Proceso formal de revisión humana periódica de las trazas de Langfuse/LangSmith — hoy existe la observabilidad, pero no un proceso definido de cuándo/cómo revisarla.
-4. Términos y condiciones de uso.
+2. Autenticación real (login externo/OAuth) — hoy `user_id` es cualquier string enviado por el cliente, sin verificar (documentado como limitación conocida en el informe). Es la única capa de seguridad que queda pendiente de las 7 mapeadas en `docs/capas-seguridad.svg`.
 
 
 ## Entregables de este trabajo
