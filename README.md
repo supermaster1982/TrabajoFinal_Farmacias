@@ -13,7 +13,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 | RAG del vademécum (Qdrant, 220 fichas), sub-grafo `retrieve → rerank → filter` | ✅ |
 | Guardrails de entrada y salida (fail-closed, texto plano, sin falsos bloqueos) | ✅ |
 | Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
-| Observabilidad (Langfuse Cloud + LangSmith) | ✅ |
+| Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
 | Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith) | ✅ |
 | Front conversacional (`front/index.html`) | ✅ — servir con `python -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (19 ítems) | ✅ |
@@ -49,7 +49,7 @@ gate_salida (¿la respuesta igual recomendó algo?)
 
 Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que intenta una cadena de modelos de respaldo (`gpt-5.4-mini → gpt-5-mini → gpt-5.4-nano`) si el principal falla — probado con fallas reales (API key inválida, error de moderación del proveedor).
 
-Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.env`, el agente funciona igual, solo sin trazas.
+Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.env`, el agente funciona igual, solo sin trazas. Hoy el proyecto usa solo LangSmith — Langfuse quedó implementado en el código (`resilience.py`, guardas, agente) y sigue disponible, pero no está configurado activamente.
 
 ## Capas de seguridad (defensa en profundidad)
 
@@ -57,7 +57,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 
 ## Mejoras recientes
 
-- **Sub-grafo del RAG con nodos explícitos** (`retrieve → rerank → filter` en `tools/rag_subgrafo.py`), visible y anidado en Langfuse/LangSmith en vez de una sola función opaca.
+- **Sub-grafo del RAG con nodos explícitos** (`retrieve → rerank → filter` en `tools/rag_subgrafo.py`), visible y anidado en LangSmith en vez de una sola función opaca.
 - **Fix de grounding**: el agente ya no completa con conocimiento propio cuando una tool falla — antes, si el RAG fallaba, el modelo "rellenaba" con lo que sabía de memoria sobre el medicamento, lo cual rompe el requisito de que la respuesta esté basada solo en lo recuperado. Se corrigió con una instrucción explícita en el `SYSTEM_PROMPT`.
 - **Fix de serialización**: `TypeError: Type is not msgpack serializable: CallbackManager` al pasar el `config` de observabilidad dentro del estado del grafo — corregido pasándolo como parámetro del nodo (`nodo_rerank(estado, config)`), como espera LangGraph.
 - **Re-rank paralelizado** (`ThreadPoolExecutor`) — medido con `eval_langsmith.py`: **latencia P50 bajó de ~14,8s a ~5,1s** (casi 3x más rápido), comparando la misma corrida de evaluación antes/después.
@@ -66,6 +66,10 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Caché de 15 min en las tools de MINSAL**: el enunciado pedía explícitamente "timeout, cache corto y fallback" — faltaba el caché. Medido con trazas reales: latencia bajó de ~11,3s a ~4,8-5,2s en preguntas repetidas dentro de la ventana de caché.
 - **Distinción entre bloqueo real y fallo técnico**: si una guarda no puede evaluar por una falla técnica (proveedor caído, credenciales inválidas), el sistema ahora responde con un error HTTP honesto (503), en vez de mostrar el mensaje de rechazo como si hubiera sido una decisión real del guardrail — evita que una falla de infraestructura se vea como una decisión de seguridad.
 - **`faithfulness`/`relevance` con contexto real**: se agregó `responder_con_contexto()` en `graph.py`, que expone lo que las tools devolvieron durante el turno — necesario para que el evaluador de `faithfulness` pueda verificar de verdad si la respuesta se basa en ese contexto, no solo comparar texto contra una referencia.
+- **Guardas extendidas a diagnóstico implícito y alergia/contraindicación**: el prompt original de las guardas solo cubría dosis/tratamiento — se extendió para bloquear también preguntas que buscan un diagnóstico a partir de síntomas, o evaluar si es seguro combinar un medicamento con una alergia/condición personal. Confirmado con `bloqueo_correcto=1.00` en las 4 preguntas adversarias correspondientes.
+- **Priorización de seguridad ante síntomas**: cuando el usuario menciona un síntoma personal junto con una pregunta de medicamento (ej. "me duele la guata, ¿para qué sirve el Viadil?"), el agente antepone la sugerencia de evaluación profesional antes de cualquier información general — nunca al revés.
+- **Filtro de similitud mínima de embeddings en el RAG**: sin re-rank LLM, el sistema podía devolver el medicamento "menos malo" por similitud cuando el preguntado no existe en el corpus (caso real: devolvió información de Venlafaxina para una pregunta sobre Viadil, una marca chilena ausente del dataset internacional). Se agregó un filtro de similitud de coseno (gratis, sin LLM) calibrado con datos reales: 0.652 para un medicamento presente en el corpus vs. 0.34–0.49 para uno ausente — umbral final: 0.5.
+- **Dataset de evaluación ampliado a 10 preguntas** (4 informativas + 6 adversarias) y sincronización automática: `eval_langsmith.py` ahora detecta y sube preguntas nuevas agregadas a `eval/*.md` sin duplicar las que ya estaban en LangSmith.
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
@@ -157,7 +161,7 @@ poetry run python eval_langsmith.py
 ```
 Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Experiments → `asistente-farmacias-eval`.
 
-Las preguntas de prueba viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` (mismo patrón que `tarea-rag-deployado-conduccion/test_eval.py`) — para agregar una pregunta nueva, solo se edita el `.md`, no hace falta tocar `eval_langsmith.py`.
+Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` (mismo patrón que `tarea-rag-deployado-conduccion/test_eval.py`) — para agregar una pregunta nueva, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente lo nuevo con LangSmith, sin duplicar lo que ya estaba subido.
 
 ## Chunking del vademécum — estrategia y justificación
 
@@ -174,9 +178,8 @@ Las preguntas de prueba viven en `eval/preguntas_respondibles.md` y `eval/pregun
 
 1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma.
 2. Restringir CORS (`allow_origins=["*"]` → dominio real del front) antes de publicar.
-3. Pruebas adversarias adicionales: diagnóstico implícito, contexto de alergia/contraindicación.
-4. Límite explícito de iteraciones del agente (`recursion_limit`).
-5. Términos y condiciones de uso.
+3. Límite explícito de iteraciones del agente (`recursion_limit`).
+4. Términos y condiciones de uso.
 
 ## Entregables de este trabajo
 

@@ -1,7 +1,7 @@
-<svg width="680" height="992" viewBox="0 0 680 992" xmlns="http://www.w3.org/2000/svg" role="img">
+<svg width="680" height="1072" viewBox="0 0 680 1072" xmlns="http://www.w3.org/2000/svg" role="img">
 <title>Capas de defensa en profundidad del asistente de farmacias</title>
 <desc>7 capas de seguridad con controles implementados (verde, con check) y pendientes (ámbar, con reloj).</desc>
-<rect width="680" height="992" fill="#ffffff"/>
+<rect width="680" height="1072" fill="#ffffff"/>
 <rect x="40" y="30" width="600" height="124" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
 <circle cx="64" cy="59.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
 <text x="64" y="63.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">1</text>
@@ -42,11 +42,10 @@
 <circle cx="70" cy="372" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
 <path d="M67,372 L69.5,374.5 L74,369" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="84" y="376" font-family="sans-serif" font-size="12" fill="#2c2c2a">Distingue bloqueo real vs. fallo técnico (503 honesto)</text>
-<circle cx="70" cy="392" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="388.5" x2="70" y2="392" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="392" x2="73" y2="393.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="396" font-family="sans-serif" font-size="12" fill="#5f5e5a">Prueba adversaria de diagnóstico implícito — falta</text>
-<rect x="40" y="444" width="600" height="124" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
+<circle cx="70" cy="392" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,392 L69.5,394.5 L74,389" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="396" font-family="sans-serif" font-size="12" fill="#2c2c2a">Cubre diagnóstico implícito y alergia/contraindicación (probado)</text>
+<rect x="40" y="444" width="600" height="204" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
 <circle cx="64" cy="473.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
 <text x="64" y="477.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">4</text>
 <text x="84" y="477.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Modelo y prompt</text>
@@ -56,47 +55,54 @@
 <circle cx="70" cy="510" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
 <path d="M67,510 L69.5,512.5 L74,507" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="84" y="514" font-family="sans-serif" font-size="12" fill="#2c2c2a">Cadena de modelos de respaldo ante caída/retiro</text>
-<circle cx="70" cy="530" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="526.5" x2="70" y2="530" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="530" x2="73" y2="531.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="534" font-family="sans-serif" font-size="12" fill="#5f5e5a">Límite de iteraciones del agente (recursion_limit) — falta</text>
-<rect x="40" y="582" width="600" height="124" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
-<circle cx="64" cy="611.0" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="1"/>
-<text x="64" y="615.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#0f6e56">5</text>
-<text x="84" y="615.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Validación de salida (gate_salida)</text>
-<circle cx="70" cy="628" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,628 L69.5,630.5 L74,625" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="632" font-family="sans-serif" font-size="12" fill="#2c2c2a">Revisa la respuesta final antes de mostrarla</text>
-<circle cx="70" cy="648" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,648 L69.5,650.5 L74,645" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="652" font-family="sans-serif" font-size="12" fill="#2c2c2a">Mismo mensaje que gate_entrada — no revela qué capa actuó</text>
-<circle cx="70" cy="668" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="664.5" x2="70" y2="668" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="668" x2="73" y2="669.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="672" font-family="sans-serif" font-size="12" fill="#5f5e5a">Prueba adversaria de alergia/contraindicación — falta</text>
-<rect x="40" y="720" width="600" height="124" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
-<circle cx="64" cy="749.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
-<text x="64" y="753.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">6</text>
-<text x="84" y="753.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Observabilidad y evaluación</text>
-<circle cx="70" cy="766" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,766 L69.5,768.5 L74,763" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="770" font-family="sans-serif" font-size="12" fill="#2c2c2a">Trazas de todos los nodos (Langfuse + LangSmith)</text>
-<circle cx="70" cy="786" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,786 L69.5,788.5 L74,783" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="790" font-family="sans-serif" font-size="12" fill="#2c2c2a">Evaluación formal con dataset adversario (5 métricas)</text>
-<circle cx="70" cy="806" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="802.5" x2="70" y2="806" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="806" x2="73" y2="807.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="810" font-family="sans-serif" font-size="12" fill="#5f5e5a">Revisión humana periódica de trazas — sin proceso formal</text>
-<rect x="40" y="858" width="600" height="104" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
-<circle cx="64" cy="887.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
-<text x="64" y="891.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">7</text>
-<text x="84" y="891.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Gobernanza y cumplimiento</text>
-<circle cx="70" cy="904" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,904 L69.5,906.5 L74,901" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="908" font-family="sans-serif" font-size="12" fill="#2c2c2a">Informe + matriz de riesgos (19 ítems)</text>
-<circle cx="70" cy="924" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="920.5" x2="70" y2="924" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="924" x2="73" y2="925.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="928" font-family="sans-serif" font-size="12" fill="#5f5e5a">Términos y condiciones de uso — falta</text>
+<circle cx="70" cy="530" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,530 L69.5,532.5 L74,527" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="534" font-family="sans-serif" font-size="12" fill="#2c2c2a">Filtro de similitud mínima de embeddings en el RAG (evita match incorrecto si</text>
+<text x="84" y="554" font-family="sans-serif" font-size="12" fill="#2c2c2a">el medicamento no existe en el corpus)</text>
+<circle cx="70" cy="570" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,570 L69.5,572.5 L74,567" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="574" font-family="sans-serif" font-size="12" fill="#2c2c2a">Prioriza sugerir evaluación profesional antes de info, si hay síntoma</text>
+<text x="84" y="594" font-family="sans-serif" font-size="12" fill="#2c2c2a">mencionado</text>
+<circle cx="70" cy="610" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
+<line x1="70" y1="606.5" x2="70" y2="610" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<line x1="70" y1="610" x2="73" y2="611.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<text x="84" y="614" font-family="sans-serif" font-size="12" fill="#5f5e5a">Límite de iteraciones del agente (recursion_limit) — falta</text>
+<rect x="40" y="662" width="600" height="124" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<circle cx="64" cy="691.0" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="1"/>
+<text x="64" y="695.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#0f6e56">5</text>
+<text x="84" y="695.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Validación de salida (gate_salida)</text>
+<circle cx="70" cy="708" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,708 L69.5,710.5 L74,705" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="712" font-family="sans-serif" font-size="12" fill="#2c2c2a">Revisa la respuesta final antes de mostrarla</text>
+<circle cx="70" cy="728" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,728 L69.5,730.5 L74,725" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="732" font-family="sans-serif" font-size="12" fill="#2c2c2a">Mismo mensaje que gate_entrada — no revela qué capa actuó</text>
+<circle cx="70" cy="748" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,748 L69.5,750.5 L74,745" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="752" font-family="sans-serif" font-size="12" fill="#2c2c2a">Probado con diagnóstico implícito y alergia/contraindicación</text>
+<rect x="40" y="800" width="600" height="124" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
+<circle cx="64" cy="829.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
+<text x="64" y="833.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">6</text>
+<text x="84" y="833.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Observabilidad y evaluación</text>
+<circle cx="70" cy="846" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,846 L69.5,848.5 L74,843" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="850" font-family="sans-serif" font-size="12" fill="#2c2c2a">Trazas de todos los nodos (LangSmith)</text>
+<circle cx="70" cy="866" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,866 L69.5,868.5 L74,863" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="870" font-family="sans-serif" font-size="12" fill="#2c2c2a">Evaluación formal con dataset adversario editable (10 preguntas, 5 métricas)</text>
+<circle cx="70" cy="886" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
+<line x1="70" y1="882.5" x2="70" y2="886" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<line x1="70" y1="886" x2="73" y2="887.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<text x="84" y="890" font-family="sans-serif" font-size="12" fill="#5f5e5a">Revisión humana periódica de trazas — sin proceso formal</text>
+<rect x="40" y="938" width="600" height="104" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
+<circle cx="64" cy="967.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
+<text x="64" y="971.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">7</text>
+<text x="84" y="971.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Gobernanza y cumplimiento</text>
+<circle cx="70" cy="984" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,984 L69.5,986.5 L74,981" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="988" font-family="sans-serif" font-size="12" fill="#2c2c2a">Informe + matriz de riesgos (19 ítems)</text>
+<circle cx="70" cy="1004" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
+<line x1="70" y1="1000.5" x2="70" y2="1004" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<line x1="70" y1="1004" x2="73" y2="1005.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
+<text x="84" y="1008" font-family="sans-serif" font-size="12" fill="#5f5e5a">Términos y condiciones de uso — falta</text>
 </svg>
