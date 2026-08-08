@@ -1,7 +1,7 @@
-<svg width="680" height="1132" viewBox="0 0 680 1132" xmlns="http://www.w3.org/2000/svg" role="img">
+<svg width="680" height="1152" viewBox="0 0 680 1152" xmlns="http://www.w3.org/2000/svg" role="img">
 <title>Capas de defensa en profundidad del asistente de farmacias</title>
 <desc>7 capas de seguridad; las capas completamente resueltas se destacan en verde, las que tienen ítems pendientes quedan en gris neutro. Controles individuales: check verde = implementado, reloj ámbar = pendiente.</desc>
-<rect width="680" height="1132" fill="#ffffff"/>
+<rect width="680" height="1152" fill="#ffffff"/>
 <rect x="40" y="30" width="600" height="164" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
 <circle cx="64" cy="59.0" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="1"/>
 <text x="64" y="63.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#0f6e56">1</text>
@@ -80,9 +80,9 @@
 <circle cx="70" cy="808" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
 <path d="M67,808 L69.5,810.5 L74,805" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="84" y="812" font-family="sans-serif" font-size="12" fill="#2c2c2a">Probado con diagnóstico implícito y alergia/contraindicación</text>
-<rect x="40" y="860" width="600" height="124" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
-<circle cx="64" cy="889.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
-<text x="64" y="893.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">6</text>
+<rect x="40" y="860" width="600" height="144" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<circle cx="64" cy="889.0" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="1"/>
+<text x="64" y="893.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#0f6e56">6</text>
 <text x="84" y="893.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Observabilidad y evaluación</text>
 <circle cx="70" cy="906" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
 <path d="M67,906 L69.5,908.5 L74,903" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -90,19 +90,18 @@
 <circle cx="70" cy="926" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
 <path d="M67,926 L69.5,928.5 L74,923" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="84" y="930" font-family="sans-serif" font-size="12" fill="#2c2c2a">Evaluación formal con dataset adversario editable (10 preguntas, 5 métricas)</text>
-<circle cx="70" cy="946" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="942.5" x2="70" y2="946" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="946" x2="73" y2="947.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="950" font-family="sans-serif" font-size="12" fill="#5f5e5a">Revisión humana periódica de trazas — sin proceso formal</text>
-<rect x="40" y="998" width="600" height="104" rx="10" fill="#f1efe8" stroke="#5f5e5a" stroke-width="0.5"/>
-<circle cx="64" cy="1027.0" r="11" fill="#ffffff" stroke="#5f5e5a" stroke-width="1"/>
-<text x="64" y="1031.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#5f5e5a">7</text>
-<text x="84" y="1031.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Gobernanza y cumplimiento</text>
-<circle cx="70" cy="1044" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
-<path d="M67,1044 L69.5,1046.5 L74,1041" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="84" y="1048" font-family="sans-serif" font-size="12" fill="#2c2c2a">Informe + matriz de riesgos (19 ítems)</text>
-<circle cx="70" cy="1064" r="6.5" fill="none" stroke="#854f0b" stroke-width="1.2"/>
-<line x1="70" y1="1060.5" x2="70" y2="1064" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<line x1="70" y1="1064" x2="73" y2="1065.5" stroke="#854f0b" stroke-width="1.1" stroke-linecap="round"/>
-<text x="84" y="1068" font-family="sans-serif" font-size="12" fill="#5f5e5a">Términos y condiciones de uso — falta</text>
+<circle cx="70" cy="946" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,946 L69.5,948.5 L74,943" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="950" font-family="sans-serif" font-size="12" fill="#2c2c2a">Proceso de revisión humana de trazas definido</text>
+<text x="84" y="970" font-family="sans-serif" font-size="12" fill="#2c2c2a">(docs/proceso-revision-trazas.md)</text>
+<rect x="40" y="1018" width="600" height="104" rx="10" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<circle cx="64" cy="1047.0" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="1"/>
+<text x="64" y="1051.0" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#0f6e56">7</text>
+<text x="84" y="1051.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#2c2c2a">Gobernanza y cumplimiento</text>
+<circle cx="70" cy="1064" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,1064 L69.5,1066.5 L74,1061" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="1068" font-family="sans-serif" font-size="12" fill="#2c2c2a">Informe + matriz de riesgos (19 ítems)</text>
+<circle cx="70" cy="1084" r="6.5" fill="none" stroke="#3b6d11" stroke-width="1.2"/>
+<path d="M67,1084 L69.5,1086.5 L74,1081" fill="none" stroke="#3b6d11" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="84" y="1088" font-family="sans-serif" font-size="12" fill="#2c2c2a">Términos y condiciones de uso, integrados al front (terminos.html)</text>
 </svg>
