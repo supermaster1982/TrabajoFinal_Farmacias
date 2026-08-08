@@ -51,6 +51,10 @@ Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que 
 
 Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.env`, el agente funciona igual, solo sin trazas.
 
+## Capas de seguridad (defensa en profundidad)
+
+![Capas de seguridad](docs/capas-seguridad.svg)
+
 ## Mejoras recientes
 
 - **Sub-grafo del RAG con nodos explícitos** (`retrieve → rerank → filter` en `tools/rag_subgrafo.py`), visible y anidado en Langfuse/LangSmith en vez de una sola función opaca.
@@ -163,6 +167,7 @@ Las preguntas de prueba viven en `eval/preguntas_respondibles.md` y `eval/pregun
 
 - `informe-seguridad-privacidad-calidad.md` / `.docx` — informe completo con matriz de 19 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
+- `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados vs. pendientes).
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
 
 ## Próximos pasos
