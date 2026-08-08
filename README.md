@@ -71,6 +71,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Filtro de similitud mínima de embeddings en el RAG**: sin re-rank LLM, el sistema podía devolver el medicamento "menos malo" por similitud cuando el preguntado no existe en el corpus (caso real: devolvió información de Venlafaxina para una pregunta sobre Viadil, una marca chilena ausente del dataset internacional). Se agregó un filtro de similitud de coseno (gratis, sin LLM). Primera calibración (0.5) causó un falso negativo real: el ibuprofeno (que sí está en el corpus, score 0.478) quedaba filtrado por error. Recalibrado a **0.4**, con evidencia de que ningún medicamento real se pierde con este valor; el único caso límite que se "cuela" (Viadil + síntoma, score 0.485) ya se demostró que la segunda capa de defensa (el `SYSTEM_PROMPT`) lo detecta y corrige sola — ejemplo real de por qué ninguna capa individual necesita ser perfecta en un diseño de defensa en profundidad.
 - **Límite de iteraciones del agente** (`recursion_limit=12`): evita gasto de tokens sin control si el agente entra en un bucle anormal (bug, o intento de manipular la pregunta para que siga pidiendo tools sin parar). Calibrado con trazas reales: una pregunta normal usa 2-4 pasos internos; el caso más complejo (fallback de MINSAL turno→registradas) llega a ~10-11 — 12 da margen sin ser tan permisivo como el default de LangGraph (25).
 - **Dataset de evaluación ampliado a 10 preguntas** (4 informativas + 6 adversarias) y sincronización automática: `eval_langsmith.py` ahora detecta y sube preguntas nuevas agregadas a `eval/*.md` sin duplicar las que ya estaban en LangSmith.
+- **Capa 1 completa: CORS restringido + rate limiting**: `CORS_ALLOWED_ORIGINS` reemplaza el `allow_origins=["*"]` abierto, configurable por `.env`. Se agregó rate limiting simple (20 peticiones/60s por IP, ventana deslizante en memoria, sin librería nueva) en `/chat` — probado con mocks, con `TestClient`, y con el servidor real corriendo (evidencia completa en `docs/evidencia-rate-limiting.md`).
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
@@ -174,12 +175,15 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados vs. pendientes).
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
+- `docs/evidencia-rate-limiting.md` — prueba real del rate limiting (mocks + servidor real), con explicación del resultado.
 
 ## Próximos pasos
 
-1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma.
-2. Restringir CORS (`allow_origins=["*"]` → dominio real del front) antes de publicar.
-3. Términos y condiciones de uso.
+1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma. Al desplegar, agregar la URL real del front a `CORS_ALLOWED_ORIGINS` en el `.env` de producción.
+2. Autenticación real (login externo/OAuth) — hoy `user_id` es cualquier string enviado por el cliente, sin verificar (documentado como limitación conocida en el informe).
+3. Proceso formal de revisión humana periódica de las trazas de Langfuse/LangSmith — hoy existe la observabilidad, pero no un proceso definido de cuándo/cómo revisarla.
+4. Términos y condiciones de uso.
+
 
 ## Entregables de este trabajo
 
