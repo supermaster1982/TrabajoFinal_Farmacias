@@ -26,6 +26,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import ToolMessage
 
 from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_de_turno,
@@ -98,6 +99,7 @@ class EstadoConversacion(TypedDict, total=False):
     razon_entrada: str
     fallo_tecnico_entrada: bool
     respuesta_agente: str
+    contexto_tools: list[str]
     bloqueado_en_salida: bool
     razon_salida: str
     fallo_tecnico_salida: bool
@@ -142,7 +144,13 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
     resultado = _react_agent.invoke(
         {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config
     )
-    return {"respuesta_agente": resultado["messages"][-1].content}
+    mensajes = resultado["messages"]
+    # Lo que cada tool devolvió durante este turno — necesario para el
+    # evaluador de "faithfulness" (¿la respuesta solo dice cosas que las
+    # tools realmente devolvieron?). No se usa en producción, solo lo
+    # consume responder_con_contexto() para eval_langsmith.py.
+    contexto_tools = [m.content for m in mensajes if isinstance(m, ToolMessage)]
+    return {"respuesta_agente": mensajes[-1].content, "contexto_tools": contexto_tools}
 
 
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
@@ -234,3 +242,26 @@ def responder(user_id: str, pregunta: str) -> str:
         )
 
     return resultado["respuesta_final"]
+
+def responder_con_contexto(user_id: str, pregunta: str) -> dict:
+    """Variante de responder() SOLO para evaluación (eval_langsmith.py) —
+    además de la respuesta final, devuelve el contexto crudo que las tools
+    devolvieron durante el turno. main.py sigue usando responder() tal
+    cual, esta función no toca el camino de producción."""
+    resultado = _app.invoke({"user_id": user_id, "pregunta": pregunta})
+
+    if _LANGFUSE_ACTIVO and _langfuse_client:
+        _langfuse_client.flush()
+
+    fallo_tecnico = resultado.get("fallo_tecnico_entrada", False) or resultado.get("fallo_tecnico_salida", False)
+    if fallo_tecnico:
+        raise GuardaNoDisponibleError(
+            "El control de seguridad no pudo evaluar la pregunta en este momento "
+            "(falla del proveedor del modelo). Por seguridad, no se procesó la "
+            "solicitud. Intenta de nuevo en un momento."
+        )
+
+    return {
+        "respuesta": resultado["respuesta_final"],
+        "contexto": resultado.get("contexto_tools", []),  # vacío si bloqueó en gate_entrada (nunca llegó a las tools)
+    }
