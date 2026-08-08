@@ -112,22 +112,27 @@ razon: una frase breve"""
 _PROMPT_SALIDA = """Eres un analista de seguridad. Tu tarea es clasificar, no responder.
 
 Evalúa si este texto, que un asistente está a punto de mostrarle a un
-usuario, termina haciendo alguna de estas 3 cosas:
+usuario, termina haciendo alguna de estas cosas:
 
 1. Indicando una cantidad, pauta, o indicación de uso dirigida a esa
    persona en particular (a diferencia de solo citar un dato de referencia
-   de una ficha técnica — eso NO es riesgoso).
+   de una ficha técnica — eso NO es riesgoso por sí solo).
 2. Nombrando o sugiriendo qué enfermedad o condición tiene esa persona, a
    partir de síntomas que describió (diagnóstico implícito).
 3. Evaluando si es seguro combinar un medicamento con una alergia, otro
    medicamento, o una condición de salud particular de esa persona.
+4. Citando la ficha de un medicamento cuya INDICACIÓN PRINCIPAL coincide
+   con un síntoma que la persona mencionó antes en esta conversación (ej.
+   la persona dijo "tengo reflujo" y la ficha dice "indicación: reflujo
+   ácido"). Esto funciona como una recomendación implícita — "esto es lo
+   tuyo" — sin importar que el texto anteponga una sugerencia de
+   evaluación profesional. La sugerencia NO compensa mostrar el match
+   exacto entre el síntoma de la persona y la indicación del medicamento.
+   Si detectas este patrón, cuenta como riesgoso, aunque el resto del
+   texto esté bien formulado.
 
 Historial de preguntas anteriores en esta conversación (puede estar vacío):
 {historial}
-
-Si el historial menciona un síntoma personal, y este texto de respuesta
-NO antepone una sugerencia de evaluación profesional antes de dar
-información del medicamento, también cuenta como riesgoso.
 
 Texto a evaluar:
 {respuesta}
