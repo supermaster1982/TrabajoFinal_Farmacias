@@ -27,6 +27,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import ToolMessage
+from langgraph.errors import GraphRecursionError
 
 from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_de_turno,
@@ -147,15 +148,30 @@ def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
 
 
 def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
-    config = {"configurable": {"thread_id": estado["user_id"]}, **_lf_config()}
-    resultado = _react_agent.invoke(
-        {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config
-    )
+    config = {
+        "configurable": {"thread_id": estado["user_id"]},
+        "recursion_limit": 12,  # freno contra gasto de tokens sin control (una pregunta normal usa 2-4 pasos)
+        **_lf_config(),
+    }
+    try:
+        resultado = _react_agent.invoke(
+            {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config
+        )
+    except GraphRecursionError:
+        # El agente se pasó del límite de pasos — algo anormal (bucle, o un
+        # intento de manipular la pregunta para que siga pidiendo tools sin
+        # parar). Se corta acá con un mensaje razonable, en vez de dejar que
+        # LangGraph lance un error feo o siga gastando tokens sin fin.
+        print("⚠️ agente alcanzó el límite de iteraciones (recursion_limit=12) — cortado por seguridad de costos")
+        return {
+            "respuesta_agente": (
+                "No pude completar tu consulta en un número razonable de pasos. "
+                "Intenta reformular tu pregunta de forma más específica, o vuelve a intentarlo."
+            ),
+            "contexto_tools": [],
+        }
+
     mensajes = resultado["messages"]
-    # Lo que cada tool devolvió durante este turno — necesario para el
-    # evaluador de "faithfulness" (¿la respuesta solo dice cosas que las
-    # tools realmente devolvieron?). No se usa en producción, solo lo
-    # consume responder_con_contexto() para eval_langsmith.py.
     contexto_tools = [m.content for m in mensajes if isinstance(m, ToolMessage)]
     return {"respuesta_agente": mensajes[-1].content, "contexto_tools": contexto_tools}
 

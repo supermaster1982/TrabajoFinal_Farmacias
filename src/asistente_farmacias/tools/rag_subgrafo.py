@@ -51,8 +51,9 @@ K_FINAL = 3
 # consulta en la terminal — ajusta este número después de ver varios casos
 # reales (uno donde SÍ está el medicamento, uno donde NO, como Viadil).
 # se probó el 0.35 sirve, pero cuando colocamos medicamento + sintoma
-# se cae, probar 0.5
-EMBEDDING_THRESHOLD_MINIMO = 0.5
+# se cae, probar 0.5, se cambia a 0.4 porque pregunta como para que 
+#sirve el ibuprofeno que si esta en la data lo excluye
+EMBEDDING_THRESHOLD_MINIMO = 0.4
 
 # Re-rank del RAG: DESACTIVADO por defecto. Justificación (medida, no
 # asumida): el mini-eval (eval_vademecum.py) comparó sin_rerank vs
