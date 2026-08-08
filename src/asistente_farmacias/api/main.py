@@ -13,9 +13,12 @@ import os
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import time
+from collections import defaultdict
+
 
 load_dotenv(override=True)
 
@@ -48,18 +51,37 @@ app = FastAPI(
     ),
 )
 
-# CORS: permite que el front (un .html abierto en el navegador, o servido
-# desde otro puerto) pueda llamar a esta API. "*" es suficientemente
-# permisivo para desarrollo on-prem; si en algún momento se despliega en
-# la nube, conviene restringir allow_origins al dominio real del front,
-# no dejarlo abierto a cualquier origen en producción.
+# --- CORS: configurable por .env, no abierto a cualquier origen -------------
+# En desarrollo apunta a tu front local. Cuando despliegues, agrega la URL
+# real de producción a CORS_ALLOWED_ORIGINS en el .env (separadas por coma),
+# sin tocar código.
+_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- Rate limiting: ventana deslizante simple, en memoria --------------------
+# Sin librería nueva ni infraestructura extra (Redis, etc.) — apropiado para
+# este proyecto. Protege contra un cliente (o script) que golpee /chat sin
+# límite, gastando créditos de OpenAI sin control.
+RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", "20"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+_rate_limit_buckets: dict[str, list] = defaultdict(list)
+
+
+def _verificar_rate_limit(client_ip: str) -> bool:
+    ahora = time.time()
+    timestamps = _rate_limit_buckets[client_ip]
+    timestamps[:] = [t for t in timestamps if ahora - t < RATE_LIMIT_WINDOW_SECONDS]
+    if len(timestamps) >= RATE_LIMIT_MAX:
+        return False
+    timestamps.append(ahora)
+    return True
 
 @app.get("/")
 def health():
@@ -68,8 +90,15 @@ def health():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, response: Response):
+async def chat(request: ChatRequest, response: Response, http_request: Request):
     """Responde una pregunta, manteniendo memoria por user_id."""
+    client_ip = http_request.client.host if http_request.client else "unknown"
+    if not _verificar_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Demasiadas solicitudes. Máximo {RATE_LIMIT_MAX} por minuto — espera un momento.",
+        )
+
     inicio = datetime.now(timezone.utc)
     print(f"🕐 [{inicio.isoformat()}] Pregunta de {request.user_id}: {request.pregunta}")
     try:
