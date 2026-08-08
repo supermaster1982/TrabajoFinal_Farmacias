@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Términos y condiciones — Asistente de Farmacias y Medicamentos</title>
+
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <style>
+    /* Estilos propios de esta página, no del chat — se agregan aparte de
+       styles.css para no mezclar el CSS del chat con el de este documento. */
+    .legal-page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+      color: var(--text);
+      font-family: "Inter", -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+    .legal-page a.back-link {
+      display: inline-block;
+      margin-bottom: 24px;
+      color: var(--cross-glow);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .legal-page a.back-link:hover {
+      text-decoration: underline;
+    }
+    .legal-page h1 {
+      font-family: "Fraunces", serif;
+      font-size: 26px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .legal-page .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin: 0 0 32px;
+    }
+    .legal-page h2 {
+      font-family: "Fraunces", serif;
+      font-size: 18px;
+      font-weight: 500;
+      margin: 32px 0 12px;
+      color: var(--cross-glow);
+    }
+    .legal-page p,
+    .legal-page li {
+      font-size: 14.5px;
+      color: var(--text);
+    }
+    .legal-page ul {
+      padding-left: 20px;
+    }
+    .legal-page li {
+      margin-bottom: 6px;
+    }
+    .legal-page strong {
+      color: var(--cross-glow);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="legal-page">
+    <a class="back-link" href="index.html">← Volver al asistente</a>
+
+    <h1>Términos y condiciones de uso</h1>
+    <p class="subtitle">Asistente Informativo de Farmacias y Medicamentos — Trabajo Final, Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universidad de Chile)</p>
+
+    <h2>1. Qué es este servicio</h2>
+    <p>Este es un <strong>proyecto educativo</strong>, desarrollado como Trabajo Final de un diplomado universitario. No es un producto comercial ni un servicio de salud. Informa sobre:</p>
+    <ul>
+      <li>Farmacias de turno y su directorio general, con datos consultados en vivo desde la API pública de MINSAL.</li>
+      <li>Información general de medicamentos, citada desde un vademécum indexado (dataset "Comprehensive Drug Information", de uso educativo).</li>
+    </ul>
+
+    <h2>2. Qué NO hace este asistente</h2>
+    <ul>
+      <li><strong>No diagnostica</strong> ninguna enfermedad ni condición de salud.</li>
+      <li><strong>No prescribe ni recomienda</strong> medicamentos, dosis, horarios de administración, ni tratamientos.</li>
+      <li><strong>No evalúa</strong> si es seguro combinar un medicamento con una alergia, otro medicamento, o una condición de salud particular.</li>
+      <li><strong>No confirma</strong> stock, precio, ni disponibilidad comercial de ningún medicamento.</li>
+      <li><strong>No reemplaza</strong> una consulta, evaluación, o receta de un profesional de salud.</li>
+    </ul>
+    <p>Si mencionas un síntoma o malestar, el asistente está diseñado para sugerirte que consultes a un profesional de salud antes de cualquier otra información — esa sugerencia no es opcional ni decorativa, es el comportamiento esperado del sistema.</p>
+
+    <h2>3. Ante una urgencia o emergencia</h2>
+    <p>Este asistente <strong>no está diseñado ni debe usarse</strong> para situaciones de urgencia o emergencia médica. Si tú o alguien cerca de ti necesita atención médica inmediata, contacta a un servicio de urgencia real (SAMU, servicio de urgencia más cercano, u otro medio equivalente) — no a este asistente.</p>
+
+    <h2>4. Exactitud de la información</h2>
+    <ul>
+      <li>Los datos de farmacias de turno provienen de una fuente externa (MINSAL) que este proyecto no controla ni puede garantizar que esté siempre actualizada o completa.</li>
+      <li>El vademécum es un dataset educativo, en inglés (traducido por el sistema al responder), que <strong>no constituye una fuente clínica autoritativa</strong>.</li>
+      <li>Aunque se han implementado múltiples controles para evitar errores, <strong>no se garantiza una exactitud del 100%</strong> en ninguna respuesta.</li>
+    </ul>
+
+    <h2>5. Datos y privacidad</h2>
+    <ul>
+      <li>Este proyecto <strong>no tiene autenticación real</strong> — el identificador de conversación es cualquier texto que el cliente envíe, sin verificación de identidad. No debe considerarse un canal privado o seguro.</li>
+      <li>Las conversaciones pueden quedar registradas con fines de desarrollo, depuración y evaluación de calidad durante la etapa de desarrollo de este proyecto educativo.</li>
+      <li><strong>No ingreses</strong> información personal sensible real (nombre completo, RUT, datos de salud reales u otra información identificable) al usar este asistente.</li>
+    </ul>
+
+    <h2>6. Uso aceptado</h2>
+    <p>Al usar este asistente, aceptas que es una herramienta informativa de apoyo, no un sustituto de criterio profesional, y que cualquier decisión sobre tu salud debe consultarse con un profesional de salud calificado.</p>
+
+    <h2>7. Contacto</h2>
+    <p>Este proyecto fue desarrollado como Trabajo Final del Módulo 04 del Diplomado en IA Generativa (UEjecutivos, Universidad de Chile). No es un canal de soporte ni un servicio con garantías de disponibilidad o continuidad.</p>
+  </div>
+
+</body>
+</html>
