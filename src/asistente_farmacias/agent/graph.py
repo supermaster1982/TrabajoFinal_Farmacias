@@ -29,6 +29,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import ToolMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
+from collections import defaultdict
 
 from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_de_turno,
@@ -89,7 +90,14 @@ SYSTEM_PROMPT = (
     "evaluar ese síntoma — no repitas ni reformules esa sugerencia más de "
     "una vez en la misma respuesta. Después de esa única frase, puedes dar "
     "la información general del medicamento que te pregunten, sin decir "
-    "que ese medicamento es lo indicado para su síntoma."
+    "que ese medicamento es lo indicado para su síntoma. "
+    "Si el mensaje de la persona es solo la mención de un síntoma o "
+    "malestar, sin pedir nada específico (sin nombrar un medicamento, sin "
+    "pedir una farmacia, sin preguntar nada en concreto), NO uses ninguna "
+    "tool — responde directamente con la sugerencia de evaluación "
+    "profesional, y pregunta qué le gustaría saber (ej. información de un "
+    "medicamento en particular, o una farmacia de turno). Nunca busques el "
+    "nombre del síntoma como si fuera un medicamento."
 )
 
 _checkpointer = MemorySaver()
@@ -124,30 +132,28 @@ def _lf_config() -> dict:
     la demo no puede mostrar evidencia de que el bloqueo realmente ocurrió."""
     return {"callbacks": [_langfuse_handler]} if _langfuse_handler else {}
 
-def _obtener_preguntas_previas(user_id: str, max_preguntas: int = 4) -> str:
-    """Lee el checkpointer del agente para ese user_id y devuelve las
-    últimas preguntas del usuario en esta conversación (sin contar la
-    actual, que todavía no se procesó). Devuelve "" si es el primer turno
-    o si algo falla — nunca debe romper el flujo principal por esto.
+# Registro propio de preguntas por conversación — separado del checkpointer
+# del agente. Por qué: el checkpointer SOLO se actualiza cuando el agente
+# corre de verdad — si una pregunta es bloqueada por gate_entrada, el
+# agente nunca se ejecuta y esa pregunta nunca queda guardada ahí. Como
+# justo las preguntas bloqueadas (por mencionar un síntoma) son las más
+# importantes de recordar, necesitamos un registro que capture TODO lo que
+# llega, sin importar si después se bloquea o no.
+_historial_preguntas: dict[str, list[str]] = defaultdict(list)
 
-    Por qué esto importa: sin esto, si alguien dice "me duele el estómago"
-    en el turno 1 y recién en el turno 3 pregunta por un medicamento
-    específico (sin repetir el síntoma), las guardas evaluaban SOLO el
-    mensaje actual y no tenían forma de conectar ambos turnos."""
-    try:
-        config = {"configurable": {"thread_id": user_id}}
-        checkpoint = _checkpointer.get(config)
-        if not checkpoint:
-            return ""
-        mensajes = checkpoint.get("channel_values", {}).get("messages", [])
-        preguntas = [m.content for m in mensajes if isinstance(m, HumanMessage)]
-        preguntas_recientes = preguntas[-max_preguntas:]
-        if not preguntas_recientes:
-            return ""
-        return "\n".join(f"- {p}" for p in preguntas_recientes)
-    except Exception as e:
-        print(f"⚠️ No se pudo leer el historial previo ({e!r}); se evalúa sin ese contexto.")
+
+def _registrar_pregunta(user_id: str, pregunta: str, max_preguntas: int = 4) -> None:
+    _historial_preguntas[user_id].append(pregunta)
+    _historial_preguntas[user_id] = _historial_preguntas[user_id][-max_preguntas:]
+
+
+def _obtener_preguntas_previas(user_id: str) -> str:
+    """Devuelve las preguntas anteriores registradas para ese user_id (sin
+    contar la actual). "" si es la primera pregunta de la conversación."""
+    preguntas = _historial_preguntas.get(user_id, [])
+    if not preguntas:
         return ""
+    return "\n".join(f"- {p}" for p in preguntas)
     
 def _colapsar_texto_duplicado(texto: str) -> str:
     """A veces el modelo repite literalmente el mismo texto dos veces
@@ -188,6 +194,10 @@ def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
             "razon_entrada": f"Guarda de entrada falló ({e!r}); fail-closed.",
             "fallo_tecnico_entrada": True,
         }
+    finally:
+        # Se registra SIEMPRE, sin importar si esta pregunta terminó
+        # bloqueada o no — para que el próximo turno la recuerde igual.
+        _registrar_pregunta(estado["user_id"], estado["pregunta"])
 
 
 def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:

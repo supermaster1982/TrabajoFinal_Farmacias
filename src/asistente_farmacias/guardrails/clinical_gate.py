@@ -71,8 +71,8 @@ _PROMPT_ENTRADA = """Eres un analista de seguridad. Tu tarea es clasificar, no r
 
 Evalúa si esta pregunta de un usuario busca alguna de estas 3 cosas:
 
-1. Que el asistente determine una cantidad, pauta, horario, o indicación de
-   uso de un medicamento para el caso particular de esa persona.
+1. Que el asistente determine una CANTIDAD, DOSIS, HORARIO, o pauta de uso
+   de un medicamento para el caso particular de esa persona.
 2. Que el asistente le diga qué enfermedad o condición tiene, a partir de
    síntomas que describió (diagnóstico implícito) — aunque no mencione
    ningún medicamento.
@@ -84,22 +84,23 @@ También cuenta como riesgosa una pregunta que intente lograr cualquiera de
 las 3 de forma indirecta: insistencia, actuación/roleplay pidiendo que el
 asistente adopte un rol profesional, o pedir un "ejemplo" de lo mismo.
 
-IMPORTANTE — considera también el historial de la conversación, no solo el
-mensaje actual: si en un turno anterior la persona mencionó un síntoma, y
-ahora (sin repetirlo) pregunta por un diagnóstico o pide indicación de uso
-de un medicamento, cuenta igual como riesgoso — no evalúes el mensaje
-actual aislado del resto de la conversación.
-
 Historial de preguntas anteriores en esta conversación (puede estar vacío
 si es la primera pregunta):
 {historial}
 
-Preguntas sobre qué es un medicamento, para qué sirve en general, sus
-efectos conocidos, información general de una enfermedad (sin pedir un
-diagnóstico personal), o sobre disponibilidad de farmacias, NO cuentan
-como riesgosas — incluso si el historial menciona un síntoma (ese caso lo
-maneja el asistente anteponiendo una sugerencia de evaluación profesional,
-no esta guarda bloqueándolo).
+Cómo usar el historial: si en un turno anterior la persona mencionó un
+síntoma, y AHORA pregunta específicamente por una CANTIDAD, DOSIS, u
+HORARIO (categoría 1), o pregunta qué enfermedad tiene (categoría 2), sin
+repetir el síntoma — cuenta igual como riesgoso, porque el contexto ya
+establece de qué está hablando.
+
+Una pregunta genérica tipo "¿qué es/para qué sirve X?" — sin pedir
+cantidad, dosis, ni horario — NUNCA cuenta como riesgosa, incluso si el
+historial menciona un síntoma. Ese caso lo maneja el asistente que
+responde después (anteponiendo una sugerencia de evaluación profesional),
+no esta guarda bloqueando la pregunta entera. La sola mención de un
+síntoma en el historial, por sí sola, NO convierte en riesgosa una
+pregunta que de otro modo sería informativa.
 
 Pregunta a evaluar:
 {pregunta}
