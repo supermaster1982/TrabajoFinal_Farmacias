@@ -21,7 +21,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 
 ## Arquitectura
 
-![Arquitectura del asistente](docs/arquitectura.svg)
+![Arquitectura del asistente](docs/arquitectura-ilustrada.svg)
 
 ```
 front/index.html (chat UI)
@@ -36,14 +36,15 @@ gate_entrada (¿pide dosis/tratamiento/diagnóstico?)
 ├── SÍ → respuesta_segura → fin
 └── NO → agente ReAct (create_react_agent + MemorySaver por user_id)
 │
-├── consultar_farmacias_de_turno → MINSAL getLocalesTurnos.php
-├── consultar_farmacias_registradas → MINSAL getLocales.php
+├── consultar_farmacias_de_turno      → MINSAL getLocalesTurnos.php (caché 15 min)
+├── consultar_farmacias_registradas   → MINSAL getLocales.php (caché 15 min)
 └── buscar_ficha_medicamento → sub-grafo RAG (tools/rag_subgrafo.py)
 retrieve → rerank (flag) → filter
 ↓
 gate_salida (¿la respuesta igual recomendó algo?)
 ├── SÍ → respuesta_segura → fin
 └── NO → respuesta final
+
 ```
 
 Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que intenta una cadena de modelos de respaldo (`gpt-5.4-mini → gpt-5-mini → gpt-5.4-nano`) si el principal falla — probado con fallas reales (API key inválida, error de moderación del proveedor).
@@ -58,6 +59,9 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Re-rank paralelizado** (`ThreadPoolExecutor`) — medido con `eval_langsmith.py`: **latencia P50 bajó de ~14,8s a ~5,1s** (casi 3x más rápido), comparando la misma corrida de evaluación antes/después.
 - **Re-rank desactivado por defecto** (`RERANK_ACTIVADO=false`): el mini-eval (`eval_vademecum.py`) mostró que, con este corpus (220 fichas atómicas, preguntas dominadas por el nombre del medicamento), el retrieval simple ya obtiene la misma calidad que con re-rank, sin el costo de latencia extra. Se mantiene la infraestructura como capacidad disponible (`RERANK_ACTIVADO=true`) si el corpus crece o se vuelve más ambiguo — decisión medida con datos propios, documentada en `rag_subgrafo.py`.
 - **Iteración sobre el propio evaluador**: el evaluador `correctness` de `eval_langsmith.py` dio un falso negativo (penalizó una respuesta correcta por tener información adicional que la referencia no exigía). Se ajustó el criterio para no penalizar información adicional correcta — evidencia de que los evaluadores LLM-as-judge también necesitan revisión, no son verdad absoluta.
+- **Caché de 15 min en las tools de MINSAL**: el enunciado pedía explícitamente "timeout, cache corto y fallback" — faltaba el caché. Medido con trazas reales: latencia bajó de ~11,3s a ~4,8-5,2s en preguntas repetidas dentro de la ventana de caché.
+- **Distinción entre bloqueo real y fallo técnico**: si una guarda no puede evaluar por una falla técnica (proveedor caído, credenciales inválidas), el sistema ahora responde con un error HTTP honesto (503), en vez de mostrar el mensaje de rechazo como si hubiera sido una decisión real del guardrail — evita que una falla de infraestructura se vea como una decisión de seguridad.
+- **`faithfulness`/`relevance` con contexto real**: se agregó `responder_con_contexto()` en `graph.py`, que expone lo que las tools devolvieron durante el turno — necesario para que el evaluador de `faithfulness` pueda verificar de verdad si la respuesta se basa en ese contexto, no solo comparar texto contra una referencia.
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
@@ -143,11 +147,13 @@ Prueba de guardrail (debe bloquear, no responder una dosis):
 poetry run python eval_vademecum.py
 ```
 
-**Evaluación formal en LangSmith** (sube un dataset + corre un Experimento real, visible en la plataforma con scores por pregunta — `bloqueo_correcto`, `correctness`, `no_recomienda_dosis`):
+**Evaluación formal en LangSmith** (sube un dataset + corre un Experimento real, visible en la plataforma con 5 scores por pregunta — `bloqueo_correcto`, `correctness`, `faithfulness`, `relevance`, `no_recomienda_dosis`):
 ```bash
 poetry run python eval_langsmith.py
 ```
 Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Experiments → `asistente-farmacias-eval`.
+
+Las preguntas de prueba viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` (mismo patrón que `tarea-rag-deployado-conduccion/test_eval.py`) — para agregar una pregunta nueva, solo se edita el `.md`, no hace falta tocar `eval_langsmith.py`.
 
 ## Chunking del vademécum — estrategia y justificación
 
@@ -156,7 +162,8 @@ Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Exp
 ## Documentación adicional
 
 - `informe-seguridad-privacidad-calidad.md` / `.docx` — informe completo con matriz de 19 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
-- `docs/arquitectura.svg` — diagrama de arquitectura.
+- `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
+- `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
 
 ## Próximos pasos
 
