@@ -15,7 +15,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 | Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
 | Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith) | ✅ |
-| Front conversacional (`front/index.html`) | ✅ — servir con `python -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
+| Front conversacional (`front/index.html`) | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (20 ítems, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
 
@@ -134,7 +134,7 @@ Abre **http://localhost:8000/docs** para probar la API directamente.
 
 ```bash
 cd front
-python -m http.server 5500
+python3 -m http.server 5500
 ```
 
 Y abre en el navegador: http://localhost:5500
