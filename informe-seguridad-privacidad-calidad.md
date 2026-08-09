@@ -25,7 +25,8 @@ El sistema es un asistente conversacional que informa sobre **farmacias de turno
 ```
 front/index.html (chat UI, incluye términos y condiciones integrados)
         ↓
-POST /chat {user_id, pregunta}
+POST /session → { token }  (sesión anónima firmada, primera vez)
+POST /chat {pregunta} + Authorization: Bearer <token>
         ↓
    FastAPI — CORS restringido por .env, rate limiting (20 req/60s por IP)
         ↓
@@ -51,7 +52,7 @@ POST /chat {user_id, pregunta}
 
 ## 3. Seguridad — guardrails y defensa en profundidad
 
-El proyecto mapea sus controles en **7 capas de defensa en profundidad** (diagrama: `docs/capas-seguridad.svg`). Al cierre de este informe, **6 de 7 capas están completas**; la única pendiente es autenticación real (ver sección 6.1).
+El proyecto mapea sus controles en **7 capas de defensa en profundidad** (diagrama: `docs/capas-seguridad.svg`). Al cierre de este informe, **las 7 capas están completas** (la última en cerrarse fue autenticación, sección 6.1).
 
 ### 3.1 Diseño: dos guardas, no una
 
@@ -245,16 +246,15 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 | 17 | Uso del identificador de otra persona sin verificación | ~~Media~~ Baja | Alto (privacidad) | Sesión anónima firmada (JWT), verificada en cada pregunta; token falsificado rechazado (401), confirmado con pruebas reales (sección 6.1) | Backend | ✅ |
 | 18 | Fuga del corpus completo del RAG | Baja | Medio | La tool solo retorna las fichas filtradas por relevancia (top 3) | Backend | ✅ |
 | 19 | Falta de términos y condiciones explícitos de uso | ~~Alta~~ Resuelto | Medio-Alto | `terminos-y-condiciones.md` + `front/terminos.html`, integrado al footer del chat | Producto | ✅ |
-| 20 *(nuevo)* | Evasión de la guarda vía contexto multi-turno (síntoma en un turno, pregunta de medicamento en otro) | Media | Medio | Registro de historial multi-turno para las guardas; comportamiento resultante conservador (bloquea de más), nunca inseguro — ver sección 3.5 | Backend | ⏳ parcial (mitigado, no eliminado) |
+| 20 | Evasión de la guarda vía contexto multi-turno (síntoma en un turno, pregunta de medicamento en otro) | Baja | Medio (UX, no seguridad) | El caso de riesgo real (indicación coincide con síntoma) se detecta y bloquea consistentemente en gate_salida (3/3 pruebas). Queda una inconsistencia menor de UX en gate_entrada (bloquea de más en algunos casos), documentada, sin impacto de seguridad. | Backend | ✅ (seguridad) / ⏳ (UX) |
 
-**19 de 20 riesgos resueltos** con evidencia verificable; 1 en estado parcial (#20, evasión multi-turno — mitigada, no eliminada por completo, documentado honestamente en sección 3.5).
+**20 de 20 riesgos con el aspecto de seguridad resuelto** (autenticación cerró el #17). El único punto que queda con comportamiento imperfecto (#20) es de experiencia de usuario, no de seguridad: `gate_entrada` a veces bloquea de más una pregunta genérica de medicamento cuando hubo un síntoma mencionado en un turno anterior (probado 3 redacciones de prompt sin lograr consistencia total) — pero el riesgo real que le preocupaba al equipo (mostrar la ficha de un medicamento cuya indicación coincide exactamente con el síntoma mencionado, funcionando como recomendación implícita) **sí quedó resuelto de forma consistente**: `gate_salida` lo detecta y bloquea en 3/3 pruebas repetidas (criterio 4, sección 3.6).
 
 ---
 
 ## 8. Limitaciones conocidas y próximos pasos
 
 1. **Despliegue en la nube** — pendiente, único punto real de la rúbrica que falta (Dockerfile ya existe).
-2. **Autenticación real** — evaluada, no implementada (sección 6.1); única capa de seguridad pendiente de las 7 mapeadas.
-3. **Evasión multi-turno de la guarda de entrada** — mitigada parcialmente (sección 3.5); el sistema falla hacia el lado seguro (bloquea de más), no hacia el lado inseguro.
-4. **Política formal de retención/anonimización de trazas** — existe el proceso de revisión (sección 6.3), falta la política de cuánto tiempo se conservan los datos.
-5. El mini-eval de calidad (sección 5.4) usó solo 3 preguntas para la comparación sin_rerank vs con_rerank — un dataset más grande daría mayor confianza estadística, aunque la evaluación formal de LangSmith (sección 5.5) ya cubre 10 preguntas con 5 métricas.
+2. **Inconsistencia de UX en `gate_entrada`** (no de seguridad) — a veces bloquea de más una pregunta genérica cuando hubo un síntoma mencionado en un turno anterior (sección 3.5); el riesgo real de seguridad equivalente ya está cerrado en `gate_salida` (sección 3.6, matriz de riesgos #20).
+3. **Política formal de retención/anonimización de trazas** — existe el proceso de revisión (sección 6.3), falta la política de cuánto tiempo se conservan los datos.
+4. El mini-eval de calidad (sección 5.4) usó solo 3 preguntas para la comparación sin_rerank vs con_rerank — un dataset más grande daría mayor confianza estadística, aunque la evaluación formal de LangSmith (sección 5.5) ya cubre 10 preguntas con 5 métricas.
