@@ -206,9 +206,11 @@ La tool no pasa el JSON crudo al LLM — se aplican 5 pasos: validar esquema/tim
 - **Observabilidad:** hoy el proyecto usa **solo LangSmith** activamente (Langfuse quedó implementado en el código y disponible, pero no configurado — decisión tomada por simplicidad, ya que Langfuse mostró delays de ingesta de varios minutos que dificultaban la demo en vivo, mientras LangSmith es instantáneo).
 - **Contexto legal chileno relevante:** Ley 21.719 de Protección de Datos Personales entra en vigor el 1 de diciembre de 2026; trata datos de salud como categoría sensible. No existe aún una ley específica de IA en Chile.
 
-### 6.1 Limitación conocida: no hay autenticación real
+### 6.1 Autenticación: sesión anónima firmada (RESUELTO)
 
-`user_id` sigue siendo cualquier string que el cliente decide enviar — sin login, token, ni verificación de identidad. Se evaluaron 3 opciones (JWT sin contraseña, OAuth real con Google, contraseña compartida) y se decidió **no implementarla en esta entrega**, priorizando cerrar otras 6 capas de seguridad que tenían mayor relación directa con el criterio 5 (condición dura) de la rúbrica. Queda como la única capa de las 7 mapeadas en `docs/capas-seguridad.svg` sin resolver, documentada explícitamente como pendiente para una versión productiva. Recomendación: sesión anónima firmada por el servidor (JWT sin datos personales) — resuelve el riesgo real (que alguien lea el historial de otra persona) sin necesitar cuentas ni base de datos.
+`user_id` ya no es un string sin verificar enviado por el cliente. El servidor genera un identificador aleatorio (sin ningún dato personal), lo firma con JWT (HS256, `SESSION_SECRET_KEY`), y lo verifica en cada pregunta antes de usarlo como `thread_id` de la conversación. Un token con firma inválida o falsificada es rechazado (401) — confirmado con pruebas reales (token con clave incorrecta, texto random, ausencia de token). El token expira en 45 minutos y se renueva automáticamente en cada pregunta exitosa mientras la persona esté activa (ventana deslizante), limitando la utilidad de un token robado que no se reutilice de inmediato.
+
+**Decisión de diseño**: se evaluaron 3 opciones (JWT sin contraseña, OAuth real, contraseña compartida) y se optó por la sesión anónima firmada — el `user_id` existe solo para 2 fines (memoria de la conversación sin mezclarse entre personas, y trazas de observabilidad sin datos personales identificables), ninguno de los cuales requiere saber *quién* es la persona. Razonamiento completo en `docs/por-que-user-id.md`; diagrama del flujo en `docs/flujo-autenticacion.svg`.
 
 ### 6.2 Términos y condiciones — RESUELTO
 
@@ -240,12 +242,12 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 | 14 | El sistema promueve indirectamente una marca comercial | Baja-Media | Medio | Prompt no compara ni recomienda marcas; solo cita la ficha técnica recuperada | Backend | ✅ |
 | 15 | Bucle no acotado del agente | Baja | Medio (costo/latencia) | `recursion_limit=12`, calibrado con trazas reales (uso normal: 2-4 pasos; caso complejo: ~10-11) | Backend | ✅ |
 | 16 | Recomendación que interactúa con alergia/contraindicación no declarada | Baja (bloqueado por guardrail) | Crítico | Guardrail extendido, probado con 2 preguntas adversarias reales | Backend | ✅ |
-| 17 | Sin autenticación real: cualquiera puede usar el user_id de otra persona | Media | Alto (privacidad) | Documentado como limitación conocida (sección 6.1); 3 opciones evaluadas, ninguna implementada aún | Backend | ⏳ |
+| 17 | Uso del identificador de otra persona sin verificación | ~~Media~~ Baja | Alto (privacidad) | Sesión anónima firmada (JWT), verificada en cada pregunta; token falsificado rechazado (401), confirmado con pruebas reales (sección 6.1) | Backend | ✅ |
 | 18 | Fuga del corpus completo del RAG | Baja | Medio | La tool solo retorna las fichas filtradas por relevancia (top 3) | Backend | ✅ |
 | 19 | Falta de términos y condiciones explícitos de uso | ~~Alta~~ Resuelto | Medio-Alto | `terminos-y-condiciones.md` + `front/terminos.html`, integrado al footer del chat | Producto | ✅ |
 | 20 *(nuevo)* | Evasión de la guarda vía contexto multi-turno (síntoma en un turno, pregunta de medicamento en otro) | Media | Medio | Registro de historial multi-turno para las guardas; comportamiento resultante conservador (bloquea de más), nunca inseguro — ver sección 3.5 | Backend | ⏳ parcial (mitigado, no eliminado) |
 
-**17 de 20 riesgos resueltos** con evidencia verificable; 3 en estado parcial, todos documentados honestamente con lo que falta y por qué se priorizó así.
+**19 de 20 riesgos resueltos** con evidencia verificable; 1 en estado parcial (#20, evasión multi-turno — mitigada, no eliminada por completo, documentado honestamente en sección 3.5).
 
 ---
 

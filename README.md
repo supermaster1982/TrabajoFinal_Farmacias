@@ -73,6 +73,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Dataset de evaluación ampliado a 10 preguntas** (4 informativas + 6 adversarias) y sincronización automática: `eval_langsmith.py` ahora detecta y sube preguntas nuevas agregadas a `eval/*.md` sin duplicar las que ya estaban en LangSmith.
 - **Capa 1 completa: CORS restringido + rate limiting**: `CORS_ALLOWED_ORIGINS` reemplaza el `allow_origins=["*"]` abierto, configurable por `.env`. Se agregó rate limiting simple (20 peticiones/60s por IP, ventana deslizante en memoria, sin librería nueva) en `/chat` — probado con mocks, con `TestClient`, y con el servidor real corriendo (evidencia completa en `docs/evidencia-rate-limiting.md`).
 - **Capas 6 y 7 completas: proceso de revisión humana + términos y condiciones**: se documentó un protocolo simple de revisión periódica de trazas (`docs/proceso-revision-trazas.md` — qué revisar, cuándo, y qué hacer con lo encontrado, siguiendo el mismo patrón usado durante todo este desarrollo). Se escribieron términos y condiciones de uso, integrados directamente al front (`front/terminos.html`, linkeado desde el footer del chat) — no solo un documento suelto en el repo.
+- **Capa 2 completa: sesión anónima firmada (JWT)**: reemplaza el `user_id` sin verificar que mandaba el cliente. El servidor genera un identificador aleatorio, sin ningún dato personal, lo firma, y lo verifica en cada pregunta — un token falsificado (firma distinta) queda rechazado (401), confirmado con pruebas reales. El token expira en 45 min y se renueva automáticamente en cada pregunta mientras la persona esté activa. Decisión de diseño documentada en `docs/por-que-user-id.md`: no se necesita saber quién es la persona (no hay cuentas, contraseñas, ni base de datos), solo que el identificador no se pueda falsificar. Con esto, **las 7 capas de seguridad mapeadas quedan completas**.
 
 ## Decisiones de diseño relevantes (ver informe completo para el detalle)
 
@@ -179,11 +180,14 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 - `docs/evidencia-rate-limiting.md` — prueba real del rate limiting (mocks + servidor real), con explicación del resultado.
 - `terminos-y-condiciones.md` / `front/terminos.html` — términos y condiciones de uso (documento + página integrada al front).
 - `docs/proceso-revision-trazas.md` — protocolo de revisión humana periódica de trazas.
+- `docs/por-que-user-id.md` — razonamiento de diseño detrás de la autenticación por sesión anónima.
+- `docs/flujo-autenticacion.svg` — diagrama del flujo completo (crear sesión, preguntar, renovar token, rechazo de token falsificado).
+
+## Próximos pasos
 
 ## Próximos pasos
 
 1. Despliegue en un entorno cloud (localhost no acredita el punto 6 de la rúbrica) — Dockerfile ya existe, falta adaptarlo y elegir plataforma. Al desplegar, agregar la URL real del front a `CORS_ALLOWED_ORIGINS` en el `.env` de producción.
-2. Autenticación real (login externo/OAuth) — hoy `user_id` es cualquier string enviado por el cliente, sin verificar (documentado como limitación conocida en el informe). Es la única capa de seguridad que queda pendiente de las 7 mapeadas en `docs/capas-seguridad.svg`.
 
 
 ## Entregables de este trabajo

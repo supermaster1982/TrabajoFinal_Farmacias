@@ -29,4 +29,4 @@ Un identificador que:
 2. **No contenga información personal** (para que las trazas de observabilidad queden limpias).
 3. Sea automático y transparente para quien usa el asistente (sin pantallas de login).
 
-**Solución que estamos evaluando**: sesión anónima firmada por el servidor (JWT sin datos personales adentro) — el servidor genera el ID la primera vez, lo firma, y lo verifica en cada pregunta siguiente. Resuelve las 2 razones reales (memoria confiable + privacidad en trazas) sin necesitar cuentas ni base de datos.
+**Solución implementada**: sesión anónima firmada por el servidor (JWT sin datos personales adentro, 45 min con renovación automática) — el servidor genera el ID la primera vez, lo firma, y lo verifica en cada pregunta siguiente. Resuelve las 2 razones reales (memoria confiable + privacidad en trazas) sin necesitar cuentas ni base de datos. Ver `docs/flujo-autenticacion.svg` para el diagrama del flujo completo.
