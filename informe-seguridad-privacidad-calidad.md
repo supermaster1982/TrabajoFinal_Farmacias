@@ -95,6 +95,8 @@ Ambas categorías se agregaron al prompt de la guarda de entrada y salida, y se 
 
 **Limitación conocida, documentada honestamente:** cuando el síntoma se menciona en un turno y la pregunta del medicamento llega **genérica, en un turno posterior**, la guarda de entrada tiende a **bloquear la pregunta completa** en vez de dejarla pasar con la sugerencia antepuesta — pese a 3 iteraciones distintas de redacción del prompt intentando corregirlo. Se decidió no seguir iterando sobre esto porque el comportamiento resultante, aunque no es el ideal de diseño, **no es peligroso** — el sistema falla hacia el lado conservador (bloquea de más), nunca hacia el lado de dejar pasar algo que no debería. Es consistente con el diseño fail-closed del resto del sistema.
 
+**Nota sobre la persistencia de sesión:** como el token de sesión (JWT, 45 min) se guarda en `localStorage` del navegador y se renueva automáticamente en cada pregunta exitosa mientras la persona esté activa, un simple refresh de página **no** genera una conversación nueva — el `session_id` (y por lo tanto el historial en `_historial_preguntas`) se mantiene igual mientras el token siga vigente. Esto es la causa más probable de que una pregunta sobre un medicamento parezca bloqueada "sin motivo aparente" tras un refresh: la memoria de un síntoma mencionado antes del refresh sigue activa. Comportamiento esperado del diseño (ver `docs/por-que-user-id.md`), no un bug.
+
 ### 3.6 Deduplicación de texto repetido
 
 Se observó que, al aplicar la instrucción de "antepón la sugerencia de evaluación profesional", el modelo a veces repetía literalmente la misma frase (o el mensaje completo) dos veces seguidas — persistía incluso pidiéndole explícitamente "una sola vez" en el prompt. Se resolvió con post-procesamiento determinístico (`_colapsar_texto_duplicado`, detección por regex de contenido exactamente repetido), en vez de seguir intentando resolverlo solo con redacción de prompt.
@@ -128,15 +130,19 @@ Confirmado con `bloqueo_correcto = 1.00` en la evaluación formal de LangSmith (
 
 ## 4. Resiliencia ante caída o retiro de modelo
 
-No es un riesgo hipotético: durante el desarrollo, OpenAI retiró `gpt-4o-mini` de ChatGPT (febrero 2026), y Anthropic suspendió temporalmente el acceso a Claude Fable 5 y Mythos 5 por controles de exportación de EE.UU. en julio de 2026 (restaurado después). Un sistema que depende de un solo modelo puede quedar fuera de servicio sin que el equipo haya hecho nada mal.
+No es un riesgo hipotético: durante el desarrollo, OpenAI retiró `gpt-4o-mini` de ChatGPT (febrero 2026), y Anthropic suspendió temporalmente el acceso a Claude Fable 5 y Mythos 5 por controles de exportación de EE.UU. en julio de 2026 (restaurado después). Un sistema que depende de un solo modelo puede quedar fuera de servicio sin que el equipo haya hecho nada mal. Durante el propio desarrollo de este proyecto se confirmó lo mismo: `gpt-5-mini` (snapshot `2025-08-07`) dejó de aceptar `temperature` distinto de 1 y ya tiene retiro de API anunciado por OpenAI (10 de diciembre de 2026) — se sacó de toda cadena de respaldo por esa razón.
 
-**Mitigación implementada:** cadena de modelos de respaldo (`resilience.py`). Si el modelo principal falla, se prueba automáticamente el siguiente:
+**Dos mecanismos de resiliencia, uno para cada rol de modelo** (detalle completo, con la matriz de evaluación 3×3 que llevó a esta elección, en `docs/eleccion-modelos-gen-guard.md`):
+
+- **`GUARD_MODEL`** (guardas de entrada/salida y filtro de similitud de embeddings): `invocar_con_fallback()` en `resilience.py` prueba la cadena en orden hasta que uno responda. Fail-closed: si los tres fallan, se bloquea por seguridad en vez de dejar pasar.
+- **`GEN_MODEL`** (agente): `ChatOpenAI.with_fallbacks()` de LangChain, integrado directo en el `Runnable` que usa `create_react_agent` — reintenta la invocación completa con el siguiente modelo si el principal falla. Confirmado con evidencia real en LangSmith: un trace muestra las dos llamadas seguidas dentro del mismo turno (modelo principal falla en 0.29s, fallback responde en 0.91s), sin error visible para el usuario.
 
 ```
-gpt-5.4-mini (principal) → gpt-5-mini (respaldo 1) → gpt-5.4-nano (respaldo 2)
+GUARD_MODEL:  gpt-5.6-luna (principal) → gpt-5.4-mini (respaldo 1) → gpt-5.4-nano (respaldo 2)
+GEN_MODEL:    gpt-5.6-luna (principal) → gpt-5.4-mini (respaldo 1) → gpt-5.4-nano (respaldo 2)
 ```
 
-Se evitó deliberadamente incluir modelos de la familia GPT-4o/4.1 como respaldo, por estar en el mismo proceso de retiro que el modelo que se busca reemplazar.
+`GEN_MODEL` y `GUARD_MODEL` son variables independientes en el código (evita el acoplamiento accidental detectado durante la evaluación, donde `resilience.py` leía `GEN_MODEL` por error) — hoy comparten el mismo valor porque `gpt-5.6-luna` resultó ser la mejor opción medida en ambos roles, no por una limitación del diseño.
 
 ---
 
@@ -193,6 +199,8 @@ Se migró de un mini-eval que solo imprimía en consola a una evaluación formal
 
 **Resultados finales de la evaluación formal:** `1.00` en `bloqueo_correcto` y `no_recomienda_dosis` en las 10 preguntas; `0.90-1.00` en `faithfulness`/`relevance` en las preguntas informativas; latencia P50 de ~5s (bajada desde ~14.8s tras la paralelización del re-rank — no aplica cuando está desactivado, que es el estado por defecto).
 
+**Elección de `GEN_MODEL`/`GUARD_MODEL` (evaluación factorial completa):** además del mini-eval anterior, se corrió una comparación 3×3 cruzando los tres modelos candidatos (`gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.6-luna`) en ambos roles simultáneamente — 9 combinaciones evaluadas con las mismas 5 métricas. `gpt-5.6-luna` resultó ganador en ambos roles: como `GUARD_MODEL`, es la única fila con `bloqueo_correcto=1.00` sin importar qué modelo genere la respuesta; como `GEN_MODEL`, obtuvo el mejor `relevance`/`faithfulness` y el menor costo de las tres opciones. `gpt-5.4-nano` quedó descartado de ambos roles: como agente, alucina un disclaimer de síntoma que dispara bloqueos en cascada; como guarda, sobre-bloquea respuestas informativas legítimas. Detalle completo, con las 5 matrices de métricas y el razonamiento de cada hallazgo, en `docs/eleccion-modelos-gen-guard.md`.
+
 ### 5.6 Calidad de datos de MINSAL
 
 La tool no pasa el JSON crudo al LLM — se aplican 5 pasos: validar esquema/timeout, normalizar texto, filtrar por comuna, interpretar turnos nocturnos, y responder solo con dato + límite. **Caché de 15 minutos** agregado (requisito explícito del enunciado que faltaba) — medido con trazas reales: latencia bajó de ~11.3s a ~4.8-5.2s en preguntas repetidas dentro de la ventana de caché.
@@ -228,7 +236,7 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 | # | Riesgo | Probabilidad | Impacto | Mitigación verificable | Dueño | Estado |
 |---|---|---|---|---|---|---|
 | 1 | El sistema es interpretado como asesoría médica/farmacéutica | Baja (con guardrail) | Crítico | Guardrail de entrada y salida, fail-closed, probado con 10 preguntas adversarias en el dataset formal | Backend | ✅ |
-| 2 | El proveedor del LLM retira o suspende el modelo principal sin aviso | Baja-Media | Crítico si no se maneja | Cadena de fallback a 2 modelos alternativos | Backend | ✅ |
+| 2 | El proveedor del LLM retira o suspende el modelo principal sin aviso | Baja-Media | Crítico si no se maneja | Cadena de fallback independiente para `GEN_MODEL` y `GUARD_MODEL` (sección 4), confirmada con evidencia real en LangSmith | Backend | ✅ |
 | 3 | El propio prompt del guardrail dispara la moderación del proveedor | Media (ya ocurrió) | Alto si no se corrige | Migración a texto plano + parseo manual | Backend | ✅ |
 | 4 | Dato de MINSAL desactualizado o inexistente para una comuna | Media | Alto | Fecha visible + fallback automático al directorio completo | Backend | ✅ |
 | 5 | API de MINSAL no responde (timeout, caída) | Media | Alto | Timeout explícito + manejo de excepciones por tipo + caché de 15 min | Backend | ✅ |
@@ -236,7 +244,7 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 | 7 | Delay de ingesta de Langfuse afecta la demo en vivo | Alta (observado) | Bajo | LangSmith como observabilidad principal (instantáneo) | Backend | ✅ |
 | 8 | El re-rank del RAG agrega latencia sin garantía de mejora | Media | Bajo-Medio | Mini-eval cuantitativo; desactivado por defecto, paralelizado si se activa | Backend | ✅ |
 | 9 | Credenciales expuestas accidentalmente en el repositorio | Baja | Crítico | `.gitignore` cubre `.env`; verificación manual antes de cada push | Todo el equipo | ✅ |
-| 10 | Costo escala sin control | Media | Medio | Cadena de fallback económica + `recursion_limit=12` + rate limiting (20 req/60s) | Backend | ✅ |
+| 10 | Costo escala sin control | Media | Medio | Cadena de fallback económica (`gpt-5.6-luna`, la más barata de las evaluadas) + `recursion_limit=12` + rate limiting (20 req/60s) | Backend | ✅ |
 | 11 | Ciberataque genérico (DoS, abuso de la API pública) | Baja-Media | Alto | CORS restringido por `.env`, rate limiting probado en 3 niveles (mocks, TestClient, servidor real) | Backend | ✅ |
 | 12 | El sistema sugiere o nombra un diagnóstico/enfermedad | Media | Alto | Guardrail extendido a diagnóstico implícito, probado con pregunta adversaria real, `bloqueo_correcto=1.00` | Backend | ✅ |
 | 13 | La API de MINSAL podría limitar o bloquear tráfico por volumen | Media | Alto | Caché de 15 min implementado y medido (latencia bajó ~2.7x en preguntas repetidas) | Backend | ✅ |
@@ -258,3 +266,4 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 2. **Inconsistencia de UX en `gate_entrada`** (no de seguridad) — a veces bloquea de más una pregunta genérica cuando hubo un síntoma mencionado en un turno anterior (sección 3.5); el riesgo real de seguridad equivalente ya está cerrado en `gate_salida` (sección 3.6, matriz de riesgos #20).
 3. **Política formal de retención/anonimización de trazas** — existe el proceso de revisión (sección 6.3), falta la política de cuánto tiempo se conservan los datos.
 4. El mini-eval de calidad (sección 5.4) usó solo 3 preguntas para la comparación sin_rerank vs con_rerank — un dataset más grande daría mayor confianza estadística, aunque la evaluación formal de LangSmith (sección 5.5) ya cubre 10 preguntas con 5 métricas.
+5. Detalle completo de la elección de `GEN_MODEL`/`GUARD_MODEL`, con la matriz de evaluación 3×3 y los diagramas de las cadenas de fallback, en `docs/eleccion-modelos-gen-guard.md`.

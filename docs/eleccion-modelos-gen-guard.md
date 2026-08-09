@@ -221,7 +221,7 @@ dentro del mismo nodo `call_model` — la primera contra el modelo inválido, co
 respuesta llegó normal al usuario, sin error visible ni degradación notoria más allá
 de la latencia extra del primer intento fallido.
 
+ 
 ## Pendiente
-
-- Actualizar `informe-seguridad-privacidad-calidad.md` (sección 5, calidad) y el
-  README con la decisión final y un enlace a este documento.
+ 
+Sin pendientes abiertos. `informe-seguridad-privacidad-calidad.md` (secciones 4, 5.5 y 7) y este documento quedaron sincronizados el 09-08-2026.
