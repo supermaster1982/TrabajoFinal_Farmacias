@@ -31,9 +31,15 @@ logger = logging.getLogger("asistente-farmacias.resilience")
 # originales); aunque la API todavía las sostenga "por ahora", no tiene
 # sentido usar como "plan B" algo que está en el mismo camino de salida que
 # el modelo que reemplaza. Nos quedamos dentro de la familia GPT-5.x vigente.
+
+# Modelo de las GUARDAS — variable propia, independiente de GEN_MODEL (el
+# del agente). Antes leía GEN_MODEL por error, lo que acoplaba sin querer
+# el modelo del agente con el de las guardas — descubierto al comparar
+# modelos para el agente y notar que las guardas también cambiaban de
+# comportamiento sin haberlo pedido.
 CADENA_MODELOS = [
-    os.getenv("GEN_MODEL", "gpt-5.4-mini"),
-    "gpt-5-mini",
+    os.getenv("GUARD_MODEL", "gpt-5.6-luna"),
+    "gpt-5.4-mini",
     "gpt-5.4-nano",
 ]
 
@@ -50,14 +56,27 @@ def invocar_con_fallback(prompt: str, *, temperature: float = 0, config: dict | 
     default (1) — si eso falla, reintenta el MISMO modelo sin fijar
     temperature, antes de pasar al siguiente de la cadena.
 
+    Los modelos de la familia gpt-5.6.x son "razonadores" — rechazan con
+    error 400 cualquier llamada que use function tools por
+    /v1/chat/completions a menos que se les pase reasoning_effort="none"
+    explícitamente (mismo límite ya documentado y resuelto en graph.py
+    para GEN_MODEL, ver Fix #2).
+
     Devuelve la respuesta del primer modelo que funcione. Si todos fallan,
     lanza RuntimeError con el detalle del último error."""
     ultimo_error = None
     for i, modelo in enumerate(CADENA_MODELOS):
+        # kwargs base para este modelo. Los razonadores (gpt-5.6.x)
+        # necesitan reasoning_effort="none" para poder usar function tools.
+        kwargs_base = {}
+        if modelo.startswith("gpt-5.6"):
+            kwargs_base["reasoning_effort"] = "none"
+
         # Primer intento: con la temperature pedida.
         # Segundo intento (mismo modelo): sin fijar temperature, por si el
         # modelo no soporta el valor pedido.
-        for intento, kwargs in enumerate([{"temperature": temperature}, {}]):
+        for intento, kwargs_temp in enumerate([{"temperature": temperature}, {}]):
+            kwargs = {**kwargs_base, **kwargs_temp}
             try:
                 llm = ChatOpenAI(model=modelo, **kwargs)
                 if schema is not None:

@@ -42,7 +42,7 @@ load_dotenv(override=True)
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Import diferido: valida que las env vars estén antes de construir el agente
-from asistente_farmacias.agent.graph import responder, responder_con_contexto  # noqa: E402
+from asistente_farmacias.agent.graph import responder, responder_con_contexto, GEN_MODEL  # noqa: E402
 
 DATASET_NAME = "asistente-farmacias-eval"
 GUARDRAIL_MARKER = "requiere evaluación profesional"  # mismo marcador que usa el front
@@ -288,16 +288,16 @@ evaluators = [
 def run_experiment() -> str:
     client = Client()
     subir_dataset(client)
-
+    # GEN_MODEL viene DIRECTO de graph.py (no una copia leída por separado)
+    # — es literalmente el mismo valor que graph.py usó para construir el
+    # agente, así que la etiqueta del experimento nunca puede desincronizarse.
     results = evaluate(
         agente_target,
         data=DATASET_NAME,
         evaluators=evaluators,
-        experiment_prefix="asistente-farmacias",
+        experiment_prefix=f"asistente-farmacias-{GEN_MODEL}",
     )
-    print(f"\n✅ Experimento '{results.experiment_name}' completado.")
-    print("Revísalo en LangSmith → Datasets & Experiments → asistente-farmacias-eval")
-    return results.experiment_name
+    print(f"Modelo evaluado (GEN_MODEL): {GEN_MODEL}")
 
 
 if __name__ == "__main__":

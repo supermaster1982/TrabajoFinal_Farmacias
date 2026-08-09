@@ -63,7 +63,14 @@ if _LANGFUSE_ACTIVO:
 else:
     print("ℹ️  Sin claves de Langfuse en .env — continuando sin trazas.")
 
-GEN_MODEL = os.getenv("GEN_MODEL", "gpt-5.4-mini")
+GEN_MODEL = os.getenv("GEN_MODEL")
+if not GEN_MODEL:
+    raise RuntimeError(
+        "Falta GEN_MODEL en tu .env — indica qué modelo usa el agente "
+        "(ej. GEN_MODEL=gpt-5.4-mini). No tiene valor por defecto a "
+        "propósito: así siempre queda explícito y trazable qué modelo se "
+        "está usando, en vez de depender de un valor escondido en el código."
+    )
 
 SYSTEM_PROMPT = (
     "Eres un asistente informativo sobre farmacias de turno y medicamentos "
@@ -102,8 +109,18 @@ SYSTEM_PROMPT = (
 
 _checkpointer = MemorySaver()
 
+
+# Los modelos de la familia gpt-5.6 exigen reasoning_effort="none" para
+# poder usar function tools por /v1/chat/completions — sin esto, la API
+# rechaza la petición con un 400 en cuanto el agente intenta llamar a
+# cualquier tool. Los modelos gpt-5.4.x no necesitan (ni reconocen) este
+# parámetro, así que solo se agrega condicionalmente.
+_kwargs_modelo = {}
+if GEN_MODEL.startswith("gpt-5.6"):
+    _kwargs_modelo["reasoning_effort"] = "none"
+
 _react_agent = create_react_agent(
-    model=ChatOpenAI(model=GEN_MODEL, temperature=0),
+    model=ChatOpenAI(model=GEN_MODEL, temperature=0, **_kwargs_modelo),
     tools=[consultar_farmacias_de_turno, consultar_farmacias_registradas, buscar_ficha_medicamento],
     prompt=SYSTEM_PROMPT,
     checkpointer=_checkpointer,
