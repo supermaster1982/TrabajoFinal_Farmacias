@@ -115,12 +115,34 @@ _checkpointer = MemorySaver()
 # rechaza la petición con un 400 en cuanto el agente intenta llamar a
 # cualquier tool. Los modelos gpt-5.4.x no necesitan (ni reconocen) este
 # parámetro, así que solo se agrega condicionalmente.
-_kwargs_modelo = {}
-if GEN_MODEL.startswith("gpt-5.6"):
-    _kwargs_modelo["reasoning_effort"] = "none"
+
+# Cadena de respaldo para GEN_MODEL — mismo espíritu que CADENA_MODELOS en
+# resilience.py (ver ese archivo para el contexto de por qué esto no es
+# hipotético). A diferencia de las guardas, acá no podemos usar
+# invocar_con_fallback() directo porque create_react_agent espera un
+# Runnable ya instanciado, no una función — usamos with_fallbacks() de
+# LangChain, que hace lo mismo a nivel de Runnable: si el modelo principal
+# falla en cualquier invocación, reintenta con el siguiente de la lista.
+def _construir_modelo(nombre: str, *, temperature: float = 0) -> ChatOpenAI:
+    kwargs = {}
+    if nombre.startswith("gpt-5.6"):
+        # Familia razonadora: exige reasoning_effort="none" para poder usar
+        # function tools por /v1/chat/completions.
+        kwargs["reasoning_effort"] = "none"
+    return ChatOpenAI(model=nombre, temperature=temperature, **kwargs)
+
+
+_CADENA_GEN_MODEL = [GEN_MODEL, "gpt-5.4-mini", "gpt-5.4-nano"]
+# Sin duplicados, preservando orden (por si GEN_MODEL ya es uno de los
+# respaldos — no tiene sentido repetirlo en la cadena).
+_CADENA_GEN_MODEL = list(dict.fromkeys(_CADENA_GEN_MODEL))
+
+_modelo_principal = _construir_modelo(_CADENA_GEN_MODEL[0])
+_modelos_respaldo = [_construir_modelo(m) for m in _CADENA_GEN_MODEL[1:]]
+_modelo_con_fallback = _modelo_principal.with_fallbacks(_modelos_respaldo)
 
 _react_agent = create_react_agent(
-    model=ChatOpenAI(model=GEN_MODEL, temperature=0, **_kwargs_modelo),
+    model=_modelo_con_fallback,
     tools=[consultar_farmacias_de_turno, consultar_farmacias_registradas, buscar_ficha_medicamento],
     prompt=SYSTEM_PROMPT,
     checkpointer=_checkpointer,

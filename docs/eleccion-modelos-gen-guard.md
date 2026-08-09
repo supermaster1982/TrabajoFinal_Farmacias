@@ -45,7 +45,52 @@ otras dos guardas fallan al menos en una combinación, con causas raíz distinta
   `mini` detectó esa alucinación y bloqueó como corresponde. El problema real está en
   `GEN_MODEL=nano`, no en la guarda.
 
-## Matriz completa: `relevance` (referencial)
+## Matriz completa: `correctness`
+
+| `GUARD_MODEL` \ `GEN_MODEL` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.6-luna` |
+|---|---|---|---|
+| `gpt-5.4-mini` | 0.75 | 0.50 | 0.75 |
+| `gpt-5.4-nano` | 0.75 | 0.75 | 0.50 |
+| **`gpt-5.6-luna`** | **1.00** | 0.75 | 0.75 |
+
+Solo aplica a preguntas informativas (4 de 10). El 0.75 recurrente en varias celdas
+corresponde al mismo caso ya documentado: la pregunta de Viadil, donde el RAG
+recupera Venlafaxina por similitud de embeddings — un falso negativo del evaluador
+que penaliza `correctness` de forma pareja en casi todas las combinaciones, no un
+fallo específico de ningún modelo. La única celda perfecta (`GUARD_MODEL=luna`,
+`GEN_MODEL=mini` = 1.00) sugiere que esa combinación puntual esquivó el caso, pero
+no hay evidencia suficiente para generalizarlo — la causa raíz sigue siendo el
+retriever, no el LLM.
+
+## Matriz completa: `faithfulness`
+
+| `GUARD_MODEL` \ `GEN_MODEL` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.6-luna` |
+|---|---|---|---|
+| `gpt-5.4-mini` | 0.86 | 0.71 | 0.90 |
+| `gpt-5.4-nano` | 0.73 | 0.69 | 0.69 |
+| **`gpt-5.6-luna`** | 0.78 | 0.81 | **0.91** |
+
+`GEN_MODEL=gpt-5.6-luna` tiene el mejor `faithfulness` en dos de las tres filas, y
+`GEN_MODEL=gpt-5.4-nano` el peor en todas — consistente con el hallazgo de
+alucinación de contexto ya documentado (agrega afirmaciones que el contexto
+recuperado no respalda). `GUARD_MODEL=gpt-5.4-nano` como fila completa es la más
+baja de las tres, otra señal más de que esa guarda introduce ruido en vez de
+limpiar la evaluación.
+
+## Matriz completa: `no_recomienda_dosis`
+
+| `GUARD_MODEL` \ `GEN_MODEL` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.6-luna` |
+|---|---|---|---|
+| `gpt-5.4-mini` | 1.00 | 1.00 | 1.00 |
+| `gpt-5.4-nano` | 1.00 | 1.00 | 1.00 |
+| **`gpt-5.6-luna`** | 1.00 | 1.00 | 1.00 |
+
+Perfecto en las 9 combinaciones. Es la condición dura de la rúbrica (criterio 5) y
+ninguna combinación de modelos la viola — el `SYSTEM_PROMPT` y el diseño de las dos
+guardas (`gate_entrada`/`gate_salida`) sostienen esta restricción de forma robusta
+sin importar qué modelo esté detrás.
+
+## Matriz completa: `relevance`
 
 | `GUARD_MODEL` \ `GEN_MODEL` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.6-luna` |
 |---|---|---|---|
@@ -114,15 +159,23 @@ de `gpt-4o-mini`, suspensión temporal de Claude Fable 5/Mythos 5 en julio 2026)
 ### Cadena de fallback — GEN_MODEL (`agent/graph.py`)
 
 ```
-1. gpt-5.6-luna   (principal)
+1. gpt-5.6-luna   (principal, GEN_MODEL en .env)
 2. gpt-5.4-mini   (respaldo — línea base histórica, probada y estable)
 3. gpt-5.4-nano   (último recurso — desempeño más débil, pero disponible y barato)
 ```
 
-Requiere el kwarg condicional `reasoning_effort="none"` para `gpt-5.6-luna` (y
-cualquier futuro modelo de la familia `gpt-5.6.x`), ya que estos modelos rechazan
-con error 400 las llamadas con function tools por `/v1/chat/completions` si no se
-pasa ese parámetro explícitamente.
+Implementado con `ChatOpenAI.with_fallbacks()` de LangChain, no con
+`invocar_con_fallback()` de `resilience.py` — `create_react_agent` espera un
+`Runnable` ya instanciado como `model`, no una función, así que se arma la cadena
+al construir el agente (`_construir_modelo()` + `.with_fallbacks()`) en vez de en
+cada invocación. El kwarg condicional `reasoning_effort="none"` para modelos
+`gpt-5.6.x` se aplica en `_construir_modelo()`, a cualquier eslabón de la cadena
+que lo necesite, no solo al principal.
+
+Diferencia de comportamiento a tener en cuenta: si el modelo principal falla a
+mitad de una respuesta con tools ya invocadas, `with_fallbacks()` reintenta la
+invocación completa desde cero con el siguiente modelo, no continúa desde donde
+quedó — correcto para este caso de uso (una pregunta → una respuesta).
 
 ### Cadena de fallback — GUARD_MODEL (`resilience.py`, `CADENA_MODELOS`)
 
@@ -155,21 +208,16 @@ en producción y tiene fecha de salida confirmada.
 `invocar_con_fallback()` — no por un re-rank (ese componente existe aparte, en
 `tools/tool_rag.py`, y está desactivado por defecto con `RERANK_ACTIVADO=false`).
 
-![GEN_MODEL sin cadena de respaldo](cadena-gen-model.svg)
+![Cadena de fallback de GEN_MODEL](cadena-gen-model.svg)
 
-A diferencia de las guardas, el agente todavía llama a `ChatOpenAI` directo con
-`GEN_MODEL`, sin pasar por `invocar_con_fallback()`. Si `GEN_MODEL` falla o es
-retirado, el agente no tiene plan B — queda como riesgo abierto, ver Pendiente.
+Desde que se agregó `with_fallbacks()`, el agente ya no depende de un solo modelo:
+si `GEN_MODEL` falla o es retirado, reintenta automáticamente con el siguiente de
+la cadena, igual que las guardas.
 
 ## Pendiente
 
-- Evaluar si vale la pena extender `invocar_con_fallback()` a `GEN_MODEL` en
-  `agent/graph.py` — hoy solo las guardas tienen cadena de respaldo (ver diagramas
-  arriba); el agente sigue usando `ChatOpenAI` directo sin plan B si `GEN_MODEL`
-  falla o es retirado.
-- Confirmar en LangSmith los cuatro promedios completos (`correctness`,
-  `faithfulness`, `no_recomienda_dosis`, `relevance`) de las combinaciones que
-  faltan detallar en la matriz, si se quiere el cuadro 3×3 completo con las 5
-  métricas en vez de solo `bloqueo_correcto` y `relevance`.
+- Probar en la práctica que el fallback de `GEN_MODEL` funciona (forzar
+  `GEN_MODEL` a un nombre inexistente en `.env` y confirmar en logs que cae a
+  `gpt-5.4-mini` automáticamente, sin que el usuario note la diferencia).
 - Actualizar `informe-seguridad-privacidad-calidad.md` (sección 5, calidad) y el
   README con la decisión final y un enlace a este documento.
