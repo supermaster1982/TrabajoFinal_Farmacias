@@ -214,10 +214,14 @@ Desde que se agregó `with_fallbacks()`, el agente ya no depende de un solo mode
 si `GEN_MODEL` falla o es retirado, reintenta automáticamente con el siguiente de
 la cadena, igual que las guardas.
 
+Confirmado con evidencia real en LangSmith (2026-08-09): forzando `GEN_MODEL` a un
+nombre inexistente, el trace del turno muestra dos llamadas `ChatOpenAI` seguidas
+dentro del mismo nodo `call_model` — la primera contra el modelo inválido, con error
+`NotFoundError` en 0.29s, y la segunda contra `gpt-5.4-mini`, exitosa en 0.91s. La
+respuesta llegó normal al usuario, sin error visible ni degradación notoria más allá
+de la latencia extra del primer intento fallido.
+
 ## Pendiente
 
-- Probar en la práctica que el fallback de `GEN_MODEL` funciona (forzar
-  `GEN_MODEL` a un nombre inexistente en `.env` y confirmar en logs que cae a
-  `gpt-5.4-mini` automáticamente, sin que el usuario note la diferencia).
 - Actualizar `informe-seguridad-privacidad-calidad.md` (sección 5, calidad) y el
   README con la decisión final y un enlace a este documento.
