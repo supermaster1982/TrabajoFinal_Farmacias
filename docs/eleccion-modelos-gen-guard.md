@@ -149,13 +149,13 @@ en producción y tiene fecha de salida confirmada.
 
 ### Diagramas
 
-![Cadena de fallback de GUARD_MODEL](docs/cadena-guard-model.svg)
+![Cadena de fallback de GUARD_MODEL](cadena-guard-model.svg)
 
 `gate_entrada`, `gate_salida` y el filtro de similitud de embeddings pasan por
 `invocar_con_fallback()` — no por un re-rank (ese componente existe aparte, en
 `tools/tool_rag.py`, y está desactivado por defecto con `RERANK_ACTIVADO=false`).
 
-![GEN_MODEL sin cadena de respaldo](docs/cadena-gen-model.svg)
+![GEN_MODEL sin cadena de respaldo](cadena-gen-model.svg)
 
 A diferencia de las guardas, el agente todavía llama a `ChatOpenAI` directo con
 `GEN_MODEL`, sin pasar por `invocar_con_fallback()`. Si `GEN_MODEL` falla o es
