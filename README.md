@@ -3,6 +3,58 @@
 Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional, RAG semántico, guardrails de seguridad clínica y resiliencia ante caída de modelos.
 Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universidad de Chile).
 
+## Inicio rápido
+
+Para alguien que nunca vio este proyecto — los pasos mínimos, en orden, sin explicaciones (esas están más abajo si las necesitas).
+
+**1. Clona y entra a la carpeta**
+```bash
+git clone https://github.com/genval/TrabajoFinal_Farmacias.git
+cd TrabajoFinal_Farmacias
+```
+
+**2. Consigue las credenciales que necesitas**
+- **OpenAI**: tu propia API key, con créditos cargados — [platform.openai.com](https://platform.openai.com).
+- **Qdrant Cloud**: crea un cluster gratuito en [cloud.qdrant.io](https://cloud.qdrant.io) → copia la URL y la API key.
+- **SESSION_SECRET_KEY**: la generas tú misma en el paso 4, no hay que "conseguirla" de ningún lado.
+
+**3. Instala las dependencias**
+```bash
+poetry install --with dev
+```
+
+**4. Configura tu `.env`**
+```bash
+cp .env.example .env
+python3 -c "import secrets; print(secrets.token_hex(32))"   # copia lo que imprima
+```
+Abre `.env` y completa `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`.
+
+**5. Pobla el vademécum en Qdrant (una sola vez)**
+```bash
+poetry run python load_vademecum.py
+```
+*(el CSV del vademécum ya viene incluido en el repo, en `data/vademecum/` — no hace falta descargar nada de Kaggle)*
+
+**6. Levanta el backend** (deja esta terminal corriendo)
+```bash
+poetry run uvicorn asistente_farmacias.api.main:app --reload --reload-include ".env" --port 8000 --app-dir src
+```
+
+**7. Levanta el front, en OTRA terminal** (deja esta también corriendo)
+```bash
+cd front
+python3 -m http.server 5500
+```
+
+**8. Abre el navegador**
+
+http://localhost:5500
+
+Y prueba preguntando algo como *"¿Para qué sirve el ibuprofeno?"*
+
+Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front" más abajo — tienen detalle de errores comunes.
+
 ## Estado actual
 
 | Pieza | Estado |
@@ -95,24 +147,25 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - Python 3.11+
 - Poetry
 - API key de OpenAI (con créditos cargados)
-- Cluster de Qdrant Cloud (URL + API key)
+- Cluster de Qdrant Cloud (URL + API key) — cuenta gratuita en [cloud.qdrant.io](https://cloud.qdrant.io)
 - (Opcional) Cuenta de Langfuse Cloud y/o LangSmith, para observabilidad
 
 ## Setup local
 
 ```bash
-cp .env.example .env   # completa OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, SESSION_SECRET_KEY
 poetry install --with dev
+cp .env.example .env
 ```
 
-`SESSION_SECRET_KEY` es obligatoria (el servidor no arranca sin ella) — genera la tuya con:
+Genera tu `SESSION_SECRET_KEY` (obligatoria, el servidor no arranca sin ella):
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
+Completa en `.env`: `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`.
 
 ## Poblar el vademécum en Qdrant (una sola vez)
 
-Requiere el CSV del dataset "Comprehensive Drug Information" (Kaggle) en `data/vademecum/`.
+El CSV del dataset "Comprehensive Drug Information" (Kaggle) ya viene incluido en el repo, en `data/vademecum/` — no hace falta descargarlo por separado.
 
 ```bash
 poetry run python load_vademecum.py
@@ -121,7 +174,7 @@ poetry run python load_vademecum.py
 ## Correr el servidor
 
 ```bash
-poetry run uvicorn asistente_farmacias.api.main:app --reload --port 8000 --app-dir src
+poetry run uvicorn asistente_farmacias.api.main:app --reload --reload-include ".env" --port 8000 --app-dir src
 ```
 
 Abre **http://localhost:8000/docs** para probar la API directamente.
