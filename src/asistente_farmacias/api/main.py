@@ -1,11 +1,12 @@
-"""FastAPI que expone el agente (stage 0 · esqueleto).
+"""FastAPI que expone el agente.
 
-Contrato: POST /chat {"user_id": "...", "pregunta": "..."} -> {"respuesta": "..."}
+Contrato: POST /session -> {"token": "..."}
+          POST /chat {"pregunta": "..."} + header Authorization: Bearer <token>
+          -> {"respuesta": "...", "token": "..."} (token renovado)
 
-user_id identifica el hilo de conversación (memoria). En stage 0 no hay
-autenticación real — cualquier string sirve como user_id (ej. un UUID que
-genere el front). Eso es aceptable para este proyecto educativo, pero vale
-la pena anotarlo en el informe como limitación conocida.
+El user_id real viene del token de sesión verificado (auth.py), no del
+body — evita que alguien pueda inventarse o adivinar el user_id de otra
+persona. Ver docs/por-que-user-id.md para el razonamiento completo.
 """
 
 import logging
@@ -13,7 +14,7 @@ import os
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi import FastAPI, HTTPException, Response, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import time
@@ -30,15 +31,23 @@ if not os.getenv("OPENAI_API_KEY"):
 # Import diferido a después de load_dotenv() / la validación de arriba,
 # para que el error de env var salga ANTES de intentar construir el agente.
 from asistente_farmacias.agent.graph import GuardaNoDisponibleError, responder  # noqa: E402
+from asistente_farmacias.api import auth  # noqa: E402
 
 
 class ChatRequest(BaseModel):
-    user_id: str = Field(..., description="Identificador del usuario/conversación (memoria).")
     pregunta: str = Field(..., description="Pregunta del usuario.")
+    # user_id ya NO se recibe del cliente — se obtiene del token de sesión
+    # verificado (ver /session y auth.py), para que nadie pueda inventarse
+    # o adivinar el user_id de otra persona.
 
 
 class ChatResponse(BaseModel):
     respuesta: str
+    token: str  # token renovado — el front debe reemplazar el que tenía guardado
+
+
+class SessionResponse(BaseModel):
+    token: str
 
 
 app = FastAPI(
@@ -89,9 +98,22 @@ def health():
     return {"status": "ok", "service": "asistente-farmacias", "stage": 0, "docs": "/docs"}
 
 
+@app.post("/session", response_model=SessionResponse)
+def crear_sesion():
+    """Genera una sesión anónima nueva — sin login, sin datos personales.
+    El front la llama solo si no tiene un token guardado todavía."""
+    _, token = auth.crear_sesion()
+    return SessionResponse(token=token)
+
+
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, response: Response, http_request: Request):
-    """Responde una pregunta, manteniendo memoria por user_id."""
+async def chat(
+    request: ChatRequest,
+    response: Response,
+    http_request: Request,
+    authorization: str | None = Header(default=None),
+):
+    """Responde una pregunta, manteniendo memoria por sesión."""
     client_ip = http_request.client.host if http_request.client else "unknown"
     if not _verificar_rate_limit(client_ip):
         raise HTTPException(
@@ -99,14 +121,19 @@ async def chat(request: ChatRequest, response: Response, http_request: Request):
             detail=f"Demasiadas solicitudes. Máximo {RATE_LIMIT_MAX} por minuto — espera un momento.",
         )
 
-    inicio = datetime.now(timezone.utc)
-    print(f"🕐 [{inicio.isoformat()}] Pregunta de {request.user_id}: {request.pregunta}")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Falta el token de sesión. Llama primero a POST /session.")
+    token_recibido = authorization.removeprefix("Bearer ").strip()
     try:
-        respuesta = responder(request.user_id, request.pregunta)
+        user_id = auth.verificar_sesion(token_recibido)
+    except auth.TokenInvalidoError as e:
+        raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
+
+    inicio = datetime.now(timezone.utc)
+    print(f"🕐 [{inicio.isoformat()}] Pregunta de {user_id}: {request.pregunta}")
+    try:
+        respuesta = responder(user_id, request.pregunta)
     except GuardaNoDisponibleError as e:
-        # No es un rechazo real del guardrail — es una falla técnica que,
-        # por diseño (fail-closed), bloqueó la respuesta. Se reporta como
-        # un error real (503), no como si fuera una respuesta normal.
         logger.warning(f"Guarda no disponible: {e}")
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
@@ -115,11 +142,10 @@ async def chat(request: ChatRequest, response: Response, http_request: Request):
     fin = datetime.now(timezone.utc)
     print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
 
-    # Header HTTP personalizado, visible en la pestaña "Headers" de /docs o
-    # en curl -i — para cruzar directo contra la hora que muestra Langfuse.
     response.headers["X-Timestamp-UTC"] = fin.isoformat()
 
-    return ChatResponse(respuesta=respuesta)
+    token_renovado = auth.renovar_sesion(user_id)
+    return ChatResponse(respuesta=respuesta, token=token_renovado)
 
 
 if __name__ == "__main__":

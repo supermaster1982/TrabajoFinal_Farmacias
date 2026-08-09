@@ -1,8 +1,3 @@
-/**
- * main.js — punto de entrada. Conecta config.js + dom.js + api.js y
- * maneja los eventos de la UI. No define lógica de red ni de renderizado
- * propia — delega en los otros módulos.
- */
 (function () {
   const { config } = window.App;
   const { dom } = window.App;
@@ -12,15 +7,27 @@
   const textarea = document.getElementById("pregunta");
   const apiUrlInput = document.getElementById("apiUrl");
 
-  const userId = getOrCreateUserId();
+  // El token de sesión (no un user_id) se guarda acá — se crea la primera
+  // vez que hace falta (ver ensureToken) y se reemplaza en cada respuesta
+  // exitosa (el servidor lo renueva en cada pregunta, ver saveToken).
+  let cachedToken = localStorage.getItem(config.SESSION_TOKEN_STORAGE_KEY);
 
-  function getOrCreateUserId() {
-    let id = localStorage.getItem(config.USER_ID_STORAGE_KEY);
-    if (!id) {
-      id = "web-" + crypto.randomUUID();
-      localStorage.setItem(config.USER_ID_STORAGE_KEY, id);
-    }
-    return id;
+  async function ensureToken() {
+    if (cachedToken) return cachedToken;
+    const data = await api.createSession(apiUrlInput.value);
+    cachedToken = data.token;
+    localStorage.setItem(config.SESSION_TOKEN_STORAGE_KEY, cachedToken);
+    return cachedToken;
+  }
+
+  function saveToken(token) {
+    cachedToken = token;
+    localStorage.setItem(config.SESSION_TOKEN_STORAGE_KEY, token);
+  }
+
+  function clearToken() {
+    cachedToken = null;
+    localStorage.removeItem(config.SESSION_TOKEN_STORAGE_KEY);
   }
 
   async function refreshConnectionStatus() {
@@ -38,16 +45,23 @@
     dom.setSending(true);
 
     try {
-      const data = await api.sendMessage(apiUrlInput.value, userId, pregunta);
+      const token = await ensureToken();
+      const data = await api.sendMessage(apiUrlInput.value, token, pregunta);
+      saveToken(data.token); // token renovado — reemplaza al anterior
       dom.removeTypingIndicator();
       const wasBlocked = (data.respuesta || "").includes(config.GUARDRAIL_MARKER);
       dom.addMessage("assistant", data.respuesta, { blocked: wasBlocked });
     } catch (error) {
       dom.removeTypingIndicator();
-      if (error.status === 503) {
-        // Falla técnica del guardrail (proveedor caído, credenciales
-        // inválidas, etc.) — NO es un rechazo de contenido real, así que
-        // se muestra como error honesto, no como una respuesta normal.
+      if (error.status === 401) {
+        // El token no era válido o expiró (45 min de inactividad) — se
+        // limpia; la próxima pregunta crea una sesión nueva sola.
+        clearToken();
+        dom.addMessage(
+          "error",
+          "⚠️ Tu sesión expiró. Envía la pregunta de nuevo — se creará una sesión nueva automáticamente."
+        );
+      } else if (error.status === 503) {
         dom.addMessage(
           "error",
           "⚠️ El control de seguridad no está disponible en este momento (falla del proveedor del modelo). " +
