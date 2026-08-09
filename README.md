@@ -30,6 +30,8 @@ python3 -c "import secrets; print(secrets.token_hex(32))"   # copia lo que impri
 ```
 Abre `.env` y completa `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`.
 
+**`LANGSMITH_API_KEY`** — técnicamente el sistema corre sin ella (sin trazas), pero **es necesaria para que el proyecto funcione como está diseñado**: la capa de seguridad "Observabilidad y evaluación" (una de las 7 documentadas como completas) depende de LangSmith tanto para el proceso de revisión de trazas (`docs/proceso-revision-trazas.md`) como para correr la evaluación formal (`eval_langsmith.py`). Consíguela gratis en [smith.langchain.com](https://smith.langchain.com).
+
 **5. Pobla el vademécum en Qdrant (una sola vez)**
 ```bash
 poetry run python load_vademecum.py
