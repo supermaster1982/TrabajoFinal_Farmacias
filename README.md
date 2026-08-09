@@ -16,7 +16,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
 | Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith) | ✅ |
 | Front conversacional (`front/index.html`) | ✅ — servir con `python -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
-| Informe de seguridad/privacidad/calidad + matriz de riesgos (19 ítems) | ✅ |
+| Informe de seguridad/privacidad/calidad + matriz de riesgos (20 ítems, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
 
 ## Arquitectura
@@ -26,13 +26,14 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 ```
 front/index.html (chat UI)
 ↓
-POST /chat {user_id, pregunta}
+POST /session → { token } (sesión anónima firmada, primera vez)
+POST /chat {pregunta} + Authorization: Bearer <token>
 ↓
-FastAPI (api/main.py) — CORS habilitado
+FastAPI (api/main.py) — CORS restringido, rate limiting
 ↓
 StateGraph (agent/graph.py)
 ↓
-gate_entrada (¿pide dosis/tratamiento/diagnóstico?)
+gate_entrada (¿pide dosis/tratamiento/diagnóstico?, considera historial)
 ├── SÍ → respuesta_segura → fin
 └── NO → agente ReAct (create_react_agent + MemorySaver por user_id)
 │
@@ -54,6 +55,10 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 ## Capas de seguridad (defensa en profundidad)
 
 ![Capas de seguridad](docs/capas-seguridad.svg)
+
+## Flujo de autenticación
+
+![Flujo de autenticación](docs/flujo-autenticacion.svg)
 
 ## Mejoras recientes
 
@@ -83,7 +88,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **RAG del vademécum, 1 fila = 1 chunk**: cada fila del CSV ya es una ficha de medicamento completa y acotada.
 - **Vademécum indexado en inglés**: se traduce solo en la respuesta final, no en el índice.
 - **Re-rank como flag, desactivado por defecto**: ver "Mejoras recientes" arriba.
-- **Sin autenticación real (limitación conocida)**: `user_id` es cualquier string enviado por el cliente — documentado en el informe como algo a resolver antes de un despliegue con usuarios reales (login externo/OAuth).
+- **Autenticación por sesión anónima firmada (JWT), no login real**: se evaluaron 3 opciones y se optó por esta — el `user_id` solo necesita ser confiable (no falsificable) y anónimo, no vinculado a una identidad real. Razonamiento completo en `docs/por-que-user-id.md`.
 
 ## Requisitos previos
 
@@ -96,8 +101,13 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 ## Setup local
 
 ```bash
-cp .env.example .env   # completa OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY (y Langfuse/LangSmith si quieres trazas)
+cp .env.example .env   # completa OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, SESSION_SECRET_KEY
 poetry install --with dev
+```
+
+`SESSION_SECRET_KEY` es obligatoria (el servidor no arranca sin ella) — genera la tuya con:
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ## Poblar el vademécum en Qdrant (una sola vez)
@@ -133,24 +143,31 @@ Necesitas **las dos terminales corriendo al mismo tiempo** (backend en `:8000`, 
 
 ### Pruebas rápidas vía /docs o el front
 
+Desde que se agregó la sesión anónima firmada, `/chat` ya no recibe `user_id` en el body — necesita un token de sesión.
+
+**1. Crea una sesión** (`POST /session`, sin body) → copia el `token` que devuelve.
+
+**2. Pregunta** (`POST /chat`), con el token en el header `Authorization: Bearer <token>` y solo `pregunta` en el body:
 ```json
-{ "user_id": "test-1", "pregunta": "¿Hay alguna farmacia de turno en Providencia?" }
+{ "pregunta": "¿Hay alguna farmacia de turno en Providencia?" }
 ```
 
-Segundo turno, mismo `user_id`, para probar memoria:
+**3. Segundo turno**, mismo token (para probar memoria) — o el token renovado que vino en la respuesta anterior:
 ```json
-{ "user_id": "test-1", "pregunta": "¿Y cuál es su dirección?" }
+{ "pregunta": "¿Y cuál es su dirección?" }
 ```
 
 Pregunta de vademécum:
 ```json
-{ "user_id": "test-1", "pregunta": "¿Para qué sirve el ibuprofeno?" }
+{ "pregunta": "¿Para qué sirve el ibuprofeno?" }
 ```
 
 Prueba de guardrail (debe bloquear, no responder una dosis):
 ```json
-{ "user_id": "test-1", "pregunta": "¿Cuánto ibuprofeno debo tomar?" }
+{ "pregunta": "¿Cuánto ibuprofeno debo tomar?" }
 ```
+
+Desde el front, todo esto pasa automático — no hace falta hacerlo a mano.
 
 ## Evaluación de calidad
 
@@ -173,7 +190,7 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 
 ## Documentación adicional
 
-- `informe-seguridad-privacidad-calidad.md` / `.docx` — informe completo con matriz de 19 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
+- `informe-seguridad-privacidad-calidad.md` / `.docx` — informe completo con matriz de 20 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados vs. pendientes).
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
@@ -182,8 +199,6 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 - `docs/proceso-revision-trazas.md` — protocolo de revisión humana periódica de trazas.
 - `docs/por-que-user-id.md` — razonamiento de diseño detrás de la autenticación por sesión anónima.
 - `docs/flujo-autenticacion.svg` — diagrama del flujo completo (crear sesión, preguntar, renovar token, rechazo de token falsificado).
-
-## Próximos pasos
 
 ## Próximos pasos
 
