@@ -1,4 +1,4 @@
-# asistente-farmacias
+# Asistente-farmacias
 
 Asistente informativo de farmacias de turno (MINSAL) y vademécum de medicamentos, con memoria conversacional, RAG semántico, guardrails de seguridad clínica y resiliencia ante caída de modelos.
 Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universidad de Chile).
@@ -28,7 +28,7 @@ poetry install --with dev
 cp .env.example .env
 python3 -c "import secrets; print(secrets.token_hex(32))"   # copia lo que imprima
 ```
-Abre `.env` y completa `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`.
+Abre `.env` y completa `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`. `GEN_MODEL` es obligatoria (ej. `GEN_MODEL=gpt-5.6-luna`); `GUARD_MODEL` es opcional (usa `gpt-5.6-luna` por defecto si no la seteas).
 
 **`LANGSMITH_API_KEY`** — técnicamente el sistema corre sin ella (sin trazas), pero **es necesaria para que el proyecto funcione como está diseñado**: la capa de seguridad "Observabilidad y evaluación" (una de las 7 documentadas como completas) depende de LangSmith tanto para el proceso de revisión de trazas (`docs/proceso-revision-trazas.md`) como para correr la evaluación formal (`eval_langsmith.py`). Consíguela gratis en [smith.langchain.com](https://smith.langchain.com).
 
@@ -66,9 +66,9 @@ Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front"
 | Directorio completo de farmacias en vivo — `getLocales.php` | ✅ |
 | RAG del vademécum (Qdrant, 220 fichas), sub-grafo `retrieve → rerank → filter` | ✅ |
 | Guardrails de entrada y salida (fail-closed, texto plano, sin falsos bloqueos) | ✅ |
-| Resiliencia ante caída/retiro de modelo (cadena de fallback) | ✅ |
+| Resiliencia ante caída/retiro de modelo — cadenas independientes para `GEN_MODEL` y `GUARD_MODEL` | ✅ |
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
-| Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith) | ✅ |
+| Evaluación de calidad (mini-eval propio + evaluación formal en LangSmith + comparación factorial 3×3 de modelos) | ✅ |
 | Front conversacional (`front/index.html`) | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (20 ítems, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube | ⏳ pendiente |
@@ -94,7 +94,7 @@ gate_entrada (¿pide dosis/tratamiento/diagnóstico?, considera historial)
 ├── consultar_farmacias_de_turno      → MINSAL getLocalesTurnos.php (caché 15 min)
 ├── consultar_farmacias_registradas   → MINSAL getLocales.php (caché 15 min)
 └── buscar_ficha_medicamento → sub-grafo RAG (tools/rag_subgrafo.py)
-retrieve → rerank (flag) → filter
+retrieve → filtro de similitud de embeddings → rerank (flag) → filter
 ↓
 gate_salida (¿la respuesta igual recomendó algo?)
 ├── SÍ → respuesta_segura → fin
@@ -102,7 +102,25 @@ gate_salida (¿la respuesta igual recomendó algo?)
 
 ```
 
-Cada llamada a un LLM en las guardas y el re-rank pasa por `resilience.py`, que intenta una cadena de modelos de respaldo (`gpt-5.4-mini → gpt-5-mini → gpt-5.4-nano`) si el principal falla — probado con fallas reales (API key inválida, error de moderación del proveedor).
+## Resiliencia ante caída o retiro de modelo
+
+`GEN_MODEL` (agente) y `GUARD_MODEL` (guardas de entrada/salida + filtro de similitud de embeddings) son variables independientes, cada una con su propia cadena de fallback — evita el acoplamiento accidental que hubo en una etapa temprana del desarrollo, donde `resilience.py` leía `GEN_MODEL` por error y cambiar el modelo del agente cambiaba sin querer también el de las guardas.
+
+![Cadena de fallback de GUARD_MODEL](docs/cadena-guard-model.svg)
+
+`gate_entrada`, `gate_salida` y el filtro de similitud de embeddings pasan por `invocar_con_fallback()` en `resilience.py`. Fail-closed: si los tres modelos fallan, se bloquea por seguridad en vez de dejar pasar.
+
+![Cadena de fallback de GEN_MODEL](docs/cadena-gen-model.svg)
+
+El agente usa `ChatOpenAI.with_fallbacks()` de LangChain, integrado directo en el modelo que recibe `create_react_agent`. Confirmado con evidencia real en LangSmith: forzando un modelo inválido, el trace muestra la llamada fallida (0.29s) seguida del fallback exitoso (0.91s) dentro del mismo turno, sin error visible para el usuario.
+
+Cadena vigente en ambos roles, elegida con una comparación factorial 3×3 sobre los tres modelos candidatos (detalle completo, con las 5 matrices de métricas, en `docs/eleccion-modelos-gen-guard.md`):
+
+```
+gpt-5.6-luna (principal) → gpt-5.4-mini (respaldo 1) → gpt-5.4-nano (respaldo 2)
+```
+
+Se sacó deliberadamente `gpt-5-mini` (snapshot `2025-08-07`) de toda cadena — confirmado en logs reales que ya no acepta `temperature` distinto de 1, y OpenAI ya anunció su retiro de la API para el 10 de diciembre de 2026.
 
 Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.env`, el agente funciona igual, solo sin trazas. Hoy el proyecto usa solo LangSmith — Langfuse quedó implementado en el código (`resilience.py`, guardas, agente) y sigue disponible, pero no está configurado activamente.
 
@@ -114,8 +132,11 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 
 ![Flujo de autenticación](docs/flujo-autenticacion.svg)
 
+**Nota sobre persistencia de sesión:** el token de sesión (JWT, 45 min) se guarda en `localStorage` del navegador y se renueva automáticamente en cada pregunta exitosa mientras la persona esté activa — un simple refresh de página **no** genera una conversación nueva, el historial de la sesión se mantiene mientras el token siga vigente. Si una pregunta de medicamento parece bloqueada "sin motivo" tras un refresh, probablemente sea la memoria de un síntoma mencionado antes del refresh, todavía activa (comportamiento esperado, ver `docs/por-que-user-id.md`).
+
 ## Mejoras recientes
 
+- **Cadenas de fallback separadas para `GEN_MODEL` y `GUARD_MODEL`**, con `gpt-5.6-luna` elegido en ambos roles tras una comparación factorial 3×3 — ver sección "Resiliencia" arriba y `docs/eleccion-modelos-gen-guard.md` para el detalle completo con evidencia.
 - **Sub-grafo del RAG con nodos explícitos** (`retrieve → rerank → filter` en `tools/rag_subgrafo.py`), visible y anidado en LangSmith en vez de una sola función opaca.
 - **Fix de grounding**: el agente ya no completa con conocimiento propio cuando una tool falla — antes, si el RAG fallaba, el modelo "rellenaba" con lo que sabía de memoria sobre el medicamento, lo cual rompe el requisito de que la respuesta esté basada solo en lo recuperado. Se corrigió con una instrucción explícita en el `SYSTEM_PROMPT`.
 - **Fix de serialización**: `TypeError: Type is not msgpack serializable: CallbackManager` al pasar el `config` de observabilidad dentro del estado del grafo — corregido pasándolo como parámetro del nodo (`nodo_rerank(estado, config)`), como espera LangGraph.
@@ -138,7 +159,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 
 - **Guardrails con texto plano, no `with_structured_output`**: forzar salida JSON estructurada en un prompt de clasificación de seguridad disparó el filtro de moderación del proveedor de forma consistente, incluso con preguntas inocuas. Se resolvió migrando a texto plano + parseo manual.
 - **Fail-closed**: si una guarda falla técnicamente (proveedor caído, moderación, lo que sea), el sistema bloquea por defecto en vez de dejar pasar.
-- **Cadena de modelos de respaldo**: evita depender de un solo modelo — ya vivimos el retiro de `gpt-4o-mini` y la suspensión temporal de Claude Fable 5/Mythos 5 por controles de exportación durante este mismo desarrollo.
+- **Cadenas de modelos de respaldo, independientes para agente y guardas**: evita depender de un solo modelo — ya vivimos el retiro de `gpt-4o-mini`, el fin de soporte de `gpt-5-mini`, y la suspensión temporal de Claude Fable 5/Mythos 5 por controles de exportación durante este mismo desarrollo. `gpt-5.6-luna` se eligió para ambos roles tras comparar 3 modelos candidatos en una matriz factorial completa — ver `docs/eleccion-modelos-gen-guard.md`.
 - **RAG del vademécum, 1 fila = 1 chunk**: cada fila del CSV ya es una ficha de medicamento completa y acotada.
 - **Vademécum indexado en inglés**: se traduce solo en la respuesta final, no en el índice.
 - **Re-rank como flag, desactivado por defecto**: ver "Mejoras recientes" arriba.
@@ -163,7 +184,7 @@ Genera tu `SESSION_SECRET_KEY` (obligatoria, el servidor no arranca sin ella):
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
-Completa en `.env`: `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`.
+Completa en `.env`: `OPENAI_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, y pega el valor generado en `SESSION_SECRET_KEY`. Confirma también `GEN_MODEL` (obligatoria) y, si quieres, `GUARD_MODEL` (opcional, `gpt-5.6-luna` por defecto).
 
 ## Poblar el vademécum en Qdrant (una sola vez)
 
@@ -239,6 +260,12 @@ Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Exp
 
 Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` (mismo patrón que `tarea-rag-deployado-conduccion/test_eval.py`) — para agregar una pregunta nueva, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente lo nuevo con LangSmith, sin duplicar lo que ya estaba subido.
 
+**Elección de `GEN_MODEL`/`GUARD_MODEL`**: para comparar modelos candidatos, corre `eval_langsmith.py` variando `GEN_MODEL` y/o `GUARD_MODEL` por variable de entorno, ej.:
+```bash
+GUARD_MODEL=gpt-5.6-luna poetry run python eval_langsmith.py
+```
+El nombre del experimento en LangSmith incluye el modelo evaluado, para poder comparar corridas. Detalle completo de la comparación factorial 3×3 ya realizada, en `docs/eleccion-modelos-gen-guard.md`.
+
 ## Chunking del vademécum — estrategia y justificación
 
 1 fila del CSV = 1 chunk, sin splitting. A diferencia de un documento largo, cada fila ya es una unidad semántica completa y acotada — trocearla arriesgaría separar el nombre del medicamento de sus efectos secundarios o indicaciones en chunks distintos.
@@ -246,8 +273,10 @@ Las preguntas de prueba (10 en total: 4 informativas + 6 adversarias) viven en `
 ## Documentación adicional
 
 - `informe-seguridad-privacidad-calidad.md` / `.docx` — informe completo con matriz de 20 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas.
+- `docs/eleccion-modelos-gen-guard.md` — comparación factorial 3×3 de `GEN_MODEL`/`GUARD_MODEL`, con las 5 matrices de métricas y la decisión final justificada.
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados vs. pendientes).
+- `docs/cadena-guard-model.svg` / `docs/cadena-gen-model.svg` — diagramas de las cadenas de fallback de modelos.
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
 - `docs/evidencia-rate-limiting.md` — prueba real del rate limiting (mocks + servidor real), con explicación del resultado.
 - `terminos-y-condiciones.md` / `front/terminos.html` — términos y condiciones de uso (documento + página integrada al front).
