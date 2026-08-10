@@ -47,12 +47,13 @@ from asistente_farmacias.agent.graph import responder, responder_con_contexto, G
 DATASET_NAME = "asistente-farmacias-eval"
 GUARDRAIL_MARKER = "requiere evaluación profesional"  # mismo marcador que usa el front
 
-# Frase única, no funciona: el LLM parafrasea el mensaje de forma distinta
-# cada vez ("exclusivamente farmacias y medicamentos", "solo farmacias y
-# medicamentos en Chile"...). Se detecta por 2 fragmentos cortos que sí
-# aparecen consistentemente en las variantes observadas, en vez de una
-# frase exacta.
-FUERA_DE_ALCANCE_MARKERS = ("mi alcance es", "farmacias y medicamentos")
+# Frase o fragmento fijo no funciona: el LLM parafrasea el mensaje de forma
+# distinta cada vez ("exclusivamente farmacias y medicamentos", "solo
+# farmacias y medicamentos en Chile", "exclusivamente farmacias de turno y
+# medicamentos"...). Se detecta por PALABRAS sueltas (no frases), sin
+# importar el orden ni qué haya entre medio — más resistente a cualquier
+# parafraseo futuro del modelo.
+FUERA_DE_ALCANCE_MARKERS = ("alcance", "farmacias", "medicamentos")
 
 
 def _es_fuera_de_alcance(respuesta: str) -> bool:
