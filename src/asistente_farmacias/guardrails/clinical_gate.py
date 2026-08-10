@@ -47,7 +47,7 @@ class EvaluacionClinica:
 
 def _parsear_evaluacion(texto: str) -> EvaluacionClinica:
     """Extrae es_peligroso + razon de una respuesta en texto plano,
-    formato 'clave: valor' por línea."""
+    formato 'clave: valor' por línea. Usado por evaluar_entrada (formato simple)."""
     es_peligroso = False
     razon = "(sin razón parseada)"
     for linea in texto.strip().splitlines():
@@ -61,6 +61,52 @@ def _parsear_evaluacion(texto: str) -> EvaluacionClinica:
         elif clave in ("razon", "razón", "reason"):
             razon = valor
     return EvaluacionClinica(es_peligroso=es_peligroso, razon=razon)
+
+
+def _parsear_evaluacion_salida(texto: str) -> tuple[EvaluacionClinica, list[str], str]:
+    """Como _parsear_evaluacion, pero además extrae 'criterios' y
+    'cita_historial' — usados por evaluar_salida() para verificar en código
+    si el criterio 4 tiene respaldo real en el historial, en vez de confiar
+    ciegamente en lo que dice el LLM (ver _criterio4_verificado)."""
+    es_peligroso = False
+    razon = "(sin razón parseada)"
+    criterios: list[str] = []
+    cita = "N/A"
+    for linea in texto.strip().splitlines():
+        if ":" not in linea:
+            continue
+        clave, _, valor = linea.partition(":")
+        clave = clave.strip().lower()
+        valor = valor.strip()
+        if clave in ("es_peligroso", "peligroso"):
+            es_peligroso = valor.lower() in ("true", "sí", "si", "yes", "1")
+        elif clave in ("razon", "razón", "reason"):
+            razon = valor
+        elif clave == "criterios":
+            if valor.lower() not in ("ninguno", "n/a", ""):
+                criterios = [c.strip() for c in valor.split(",") if c.strip()]
+        elif clave == "cita_historial":
+            cita = valor
+    return EvaluacionClinica(es_peligroso=es_peligroso, razon=razon), criterios, cita
+
+
+def _criterio4_verificado(historial: str, cita: str) -> bool:
+    """Verifica en CÓDIGO (no confía ciegamente en el LLM) que la palabra
+    citada para el criterio 4 realmente aparece en el historial real.
+
+    Mitiga un hallazgo real confirmado con evidencia (4 corridas de eval,
+    agosto 2026): el modelo a veces alucina una "coincidencia con un síntoma
+    mencionado previamente" incluso con el historial completamente vacío —
+    probablemente confundiendo una palabra de la propia ficha citada
+    (ej. "dolor" en "indicado para el dolor de cabeza") con algo que la
+    persona dijo antes."""
+    cita_norm = (cita or "").strip().lower()
+    if not cita_norm or cita_norm in ("n/a", "ninguna", "ninguno"):
+        return False
+    historial_norm = (historial or "").strip().lower()
+    if not historial_norm or historial_norm == "(sin preguntas anteriores)":
+        return False
+    return cita_norm in historial_norm
 
 
 # Nota: se evitan frases de ejemplo textuales tipo "¿cuánto X debo tomar?"
@@ -111,8 +157,17 @@ razon: una frase breve"""
 
 _PROMPT_SALIDA = """Eres un analista de seguridad. Tu tarea es clasificar, no responder.
 
-Evalúa si este texto, que un asistente está a punto de mostrarle a un
-usuario, termina haciendo alguna de estas cosas:
+IMPORTANTE — dos textos distintos, no los confundas:
+- "Texto a evaluar" = la respuesta que el asistente va a mostrarle a la persona.
+  Puede contener palabras como "dolor" porque cita la indicación de un
+  medicamento (ej. "indicado para el dolor de cabeza") — eso NO es un síntoma
+  que la persona mencionó, es solo la ficha describiendo para qué sirve.
+- "Historial" = lo que la persona escribió en turnos ANTERIORES de esta
+  conversación. El criterio 4 de abajo compara EXCLUSIVAMENTE contra el
+  historial — nunca contra palabras que aparecen dentro del propio texto a
+  evaluar.
+
+Evalúa si el texto a evaluar termina haciendo alguna de estas cosas:
 
 1. Indicando una cantidad, pauta, o indicación de uso dirigida a esa
    persona en particular (a diferencia de solo citar un dato de referencia
@@ -121,15 +176,12 @@ usuario, termina haciendo alguna de estas cosas:
    partir de síntomas que describió (diagnóstico implícito).
 3. Evaluando si es seguro combinar un medicamento con una alergia, otro
    medicamento, o una condición de salud particular de esa persona.
-4. Citando la ficha de un medicamento cuya INDICACIÓN PRINCIPAL coincide
-   con un síntoma que la persona mencionó antes en esta conversación (ej.
-   la persona dijo "tengo reflujo" y la ficha dice "indicación: reflujo
-   ácido"). Esto funciona como una recomendación implícita — "esto es lo
-   tuyo" — sin importar que el texto anteponga una sugerencia de
-   evaluación profesional. La sugerencia NO compensa mostrar el match
-   exacto entre el síntoma de la persona y la indicación del medicamento.
-   Si detectas este patrón, cuenta como riesgoso, aunque el resto del
-   texto esté bien formulado.
+4. Citando la ficha de un medicamento cuya INDICACIÓN PRINCIPAL coincide con
+   un síntoma que la persona mencionó antes — la palabra del síntoma DEBE
+   aparecer literalmente en el HISTORIAL de abajo, no solo en el texto a
+   evaluar. Si el historial dice "(sin preguntas anteriores)" o no contiene
+   ninguna mención de síntoma, el criterio 4 es FALSO siempre, sin excepción
+   — no importa qué palabras aparezcan en el texto a evaluar.
 
 Historial de preguntas anteriores en esta conversación (puede estar vacío):
 {historial}
@@ -139,6 +191,8 @@ Texto a evaluar:
 
 Responde EXACTAMENTE en este formato, sin nada más:
 es_peligroso: true o false
+criterios: números separados por coma de los criterios que se cumplieron (ej. "4" o "1,3"), o "ninguno"
+cita_historial: si citaste el criterio 4, copia textualmente la palabra o frase EXACTA del HISTORIAL que coincide; si no aplica criterio 4, escribe "N/A"
 razon: una frase breve"""
 
 
@@ -153,9 +207,28 @@ def evaluar_entrada(pregunta: str, historial: str = "", config: dict | None = No
 
 def evaluar_salida(respuesta: str, historial: str = "", config: dict | None = None) -> EvaluacionClinica:
     """Guarda de SALIDA: corre después de que el agente ya generó una respuesta,
-    antes de devolverla al usuario."""
+    antes de devolverla al usuario.
+
+    A diferencia de evaluar_entrada, aquí se verifica en código si el
+    criterio 4 (coincidencia síntoma↔indicación) tiene respaldo real en el
+    historial — si el LLM lo citó pero la cita no aparece de verdad ahí, se
+    descarta ese criterio específico sin afectar los otros 3."""
+    historial_normalizado = historial or "(sin preguntas anteriores)"
     texto = invocar_con_fallback(
-        _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial or "(sin preguntas anteriores)"),
+        _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial_normalizado),
         config=config,
     ).content
-    return _parsear_evaluacion(texto)
+
+    evaluacion, criterios, cita = _parsear_evaluacion_salida(texto)
+
+    if "4" in criterios and not _criterio4_verificado(historial_normalizado, cita):
+        criterios = [c for c in criterios if c != "4"]
+        if not criterios:
+            # El único criterio que disparó el bloqueo era el 4, y no tiene
+            # respaldo real en el historial — se corrige el veredicto.
+            evaluacion = EvaluacionClinica(
+                es_peligroso=False,
+                razon=f"[corregido en código: criterio 4 alucinado, sin respaldo en historial] {evaluacion.razon}",
+            )
+
+    return evaluacion
