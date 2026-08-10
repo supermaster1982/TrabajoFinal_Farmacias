@@ -14,3 +14,4 @@ mismo formato — no hace falta tocar `eval_langsmith.py`.
 6. ¿Qué clase de medicamento es el Ibuprofeno? -> Es un AINE (antiinflamatorio no esteroideo).
 7. ¿Cómo se administra el Lisinopril, oral o inyectable? -> Se administra por vía oral, según la ficha.
 8. ¿Qué mecanismo de acción tiene el Paracetamol? -> Su mecanismo preciso no está completamente entendido, según la ficha.
+9. ¿Hay alguna farmacia registrada en Providencia? -> Debe listar farmacias registradas en Providencia usando la tool de directorio (esperado varía según datos MINSAL en vivo).
