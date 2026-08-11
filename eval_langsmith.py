@@ -220,7 +220,15 @@ class CriteriaVerdict(BaseModel):
     decision: bool = Field(description="True si la respuesta cumple el criterio.")
     rationale: str = Field(description="Justificación breve.")
 
-
+# Modelo del juez — fijo, independiente de GEN_MODEL/GUARD_MODEL de producción
+# (hoy ambos son gpt-5.6-luna, ver docs/eleccion-modelos-gen-guard.md). Se
+# mantiene distinto a propósito: si el juez fuera el mismo modelo que genera
+# las respuestas, el juez tendería a calificar más favorablemente respuestas
+# con su propio "estilo" (self-preference bias), sesgando la evaluación sin
+# que se note. gpt-5.4-nano es más barato y mantiene esa separación — pese a
+# que el mismo modelo mostró problemas de fiabilidad como agente/guarda (ver
+# matriz 3x3), acá su rol es solo clasificar según un criterio explícito, no
+# generar contenido libre, que es donde se detectaron esos problemas.
 _eval_llm = ChatOpenAI(model="gpt-5.4-nano", temperature=0)
 _criteria_prompt = ChatPromptTemplate.from_messages(
     [
