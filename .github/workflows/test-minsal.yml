@@ -1,0 +1,9 @@
+name: Test MINSAL desde IP extranjera
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: curl a MINSAL
+        run: |
+          curl -v --max-time 15 "https://midas.minsal.cl/farmacia_v2/WS/getLocalesTurnos.php" || echo "FALLÓ - revisar arriba"
