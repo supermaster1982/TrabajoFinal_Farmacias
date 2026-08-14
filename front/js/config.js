@@ -10,7 +10,7 @@
 window.App = window.App || {};
 
 window.App.config = {
-  DEFAULT_API_URL: "https://trabajofinal-farmacias.onrender.com",
+  DEFAULT_API_URL: "http://localhost:8000",
   USER_ID_STORAGE_KEY: "asistente_farmacias_user_id",
   SESSION_TOKEN_STORAGE_KEY: "asistente_farmacias_session_token",
   // Frase que devuelve el guardrail cuando bloquea — si aparece en la
