@@ -125,8 +125,7 @@ async def chat(
             detail=f"Demasiadas solicitudes. Máximo {RATE_LIMIT_MAX} por minuto — espera un momento.",
         )
 
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Falta el token de sesión. Llama primero a POST /session.")
+
     token_recibido = credentials.credentials
     try:
         user_id = auth.verificar_sesion(token_recibido)
