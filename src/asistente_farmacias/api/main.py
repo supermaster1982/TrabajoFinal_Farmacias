@@ -14,7 +14,10 @@ import os
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Request, Header
+from fastapi import FastAPI, HTTPException, Response, Request, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import time
@@ -59,6 +62,7 @@ app = FastAPI(
         "etapas siguientes."
     ),
 )
+security = HTTPBearer()
 
 # --- CORS: configurable por .env, no abierto a cualquier origen -------------
 # En desarrollo apunta a tu front local. Cuando despliegues, agrega la URL
@@ -111,7 +115,7 @@ async def chat(
     request: ChatRequest,
     response: Response,
     http_request: Request,
-    authorization: str | None = Header(default=None),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Responde una pregunta, manteniendo memoria por sesión."""
     client_ip = http_request.client.host if http_request.client else "unknown"
@@ -123,7 +127,7 @@ async def chat(
 
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Falta el token de sesión. Llama primero a POST /session.")
-    token_recibido = authorization.removeprefix("Bearer ").strip()
+    token_recibido = credentials.credentials
     try:
         user_id = auth.verificar_sesion(token_recibido)
     except auth.TokenInvalidoError as e:
