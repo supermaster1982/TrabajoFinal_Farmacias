@@ -1,6 +1,5 @@
 (function () {
-  const apiUrlInput = document.getElementById("apiUrl");
-  apiUrlInput.value = window.App.config.DEFAULT_API_URL;
+
   
   const { config } = window.App;
   const { dom } = window.App;
@@ -9,6 +8,8 @@
   const form = document.getElementById("chatForm");
   const textarea = document.getElementById("pregunta");
   const apiUrlInput = document.getElementById("apiUrl");
+  apiUrlInput.value = config.DEFAULT_API_URL;
+  
 
   // El token de sesión (no un user_id) se guarda acá — se crea la primera
   // vez que hace falta (ver ensureToken) y se reemplaza en cada respuesta
