@@ -1,4 +1,7 @@
 (function () {
+  const apiUrlInput = document.getElementById("apiUrl");
+  apiUrlInput.value = window.App.config.DEFAULT_API_URL;
+  
   const { config } = window.App;
   const { dom } = window.App;
   const { api } = window.App;
