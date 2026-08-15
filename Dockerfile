@@ -9,6 +9,7 @@ COPY pyproject.toml ./
 RUN poetry install --no-root --without dev
 
 COPY src/ ./src/
+COPY data/ ./data/
 
 ENV PYTHONPATH=/app/src
 EXPOSE 8080
