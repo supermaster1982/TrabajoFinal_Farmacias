@@ -52,11 +52,13 @@ class SessionResponse(BaseModel):
 
 app = FastAPI(
     title="Asistente Informativo de Farmacias y Medicamentos",
-    version="0.1.0-stage0",
+    version="1.0.0-demo",
     description=(
-        "Stage 0 (esqueleto): valida routing del agente y memoria por user_id "
-        "con tools STUB. Las integraciones reales (MINSAL, RAG) llegan en "
-        "etapas siguientes."
+        "API conversacional informativa sobre farmacias de turno en Chile "
+        "y medicamentos. Consulta datos en vivo del MINSAL, utiliza búsqueda "
+        "semántica mediante RAG sobre un vademécum, mantiene memoria por sesión "
+        "y aplica guardrails de seguridad para no recomendar diagnósticos, "
+        "tratamientos ni dosis."
     ),
 )
 
