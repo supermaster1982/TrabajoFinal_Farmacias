@@ -20,6 +20,8 @@ casi instantáneo, sin esperar la llamada HTTP real).
 
 import time
 import unicodedata
+import json
+from pathlib import Path
 
 import requests
 from langchain_core.tools import tool
@@ -33,6 +35,30 @@ CACHE_TTL_SEGUNDOS = 15 * 60  # 15 minutos, mismo valor que el ejemplo del enunc
 # Se pierde al reiniciar el servidor — aceptable para este proyecto (mismo
 # criterio que la memoria conversacional, que también vive en RAM).
 _cache: dict[str, tuple[float, list]] = {}
+# Fallback de último recurso: snapshot estático, generado con
+# generar_snapshot_minsal.py, para cuando la API en vivo falla de forma
+# sostenida (confirmado con evidencia real: Cloudflare bloquea con 403 las
+# IP de datacenter extranjeras usadas por el hosting — ver docs/). Permitido
+# explícitamente por el enunciado: "snapshot documentado con fecha visible".
+_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+_SNAPSHOTS = {
+    URL_TURNOS: _DATA_DIR / "snapshot_minsal_turnos.json",
+    URL_LOCALES: _DATA_DIR / "snapshot_minsal_locales.json",
+}
+
+
+def _cargar_snapshot(url: str) -> tuple[list | None, str | None]:
+    """Devuelve (registros, fecha_captura) del snapshot, o (None, None) si
+    no existe o no se puede leer. Se usa SOLO cuando la llamada en vivo ya
+    falló — nunca reemplaza el intento real."""
+    path = _SNAPSHOTS.get(url)
+    if not path or not path.exists():
+        return None, None
+    try:
+        data = json.loads(path.read_text())
+        return data["registros"], data["capturado_en"]
+    except Exception:
+        return None, None
 
 
 def _sin_tildes_mayus(texto: str) -> str:
@@ -49,8 +75,9 @@ def _es_turno_nocturno(apertura: str, cierre: str) -> bool:
 
 def _consultar_api_minsal(url: str) -> tuple[list | None, str | None]:
     """Hace el GET con timeout, usando caché de 15 min. Devuelve
-    (registros, None) o (None, mensaje_error). Centraliza el manejo de
-    errores para no repetirlo en cada tool."""
+    (registros, None) para dato en vivo/caché, (registros, "__SNAPSHOT__<fecha>")
+    si cayó al snapshot de emergencia, o (None, mensaje_error) si ni la
+    llamada en vivo ni el snapshot funcionaron."""
     ahora = time.time()
 
     if url in _cache:
@@ -60,19 +87,25 @@ def _consultar_api_minsal(url: str) -> tuple[list | None, str | None]:
         # Expiró: se saca del caché y sigue al fetch real más abajo.
         del _cache[url]
 
+    def _fallback_o_error(mensaje_error: str) -> tuple[list | None, str | None]:
+        registros_snap, fecha_snap = _cargar_snapshot(url)
+        if registros_snap:
+            return registros_snap, f"__SNAPSHOT__{fecha_snap}"
+        return None, mensaje_error
+
     try:
         respuesta = requests.get(url, timeout=TIMEOUT_SEGUNDOS)
         respuesta.raise_for_status()
         registros = respuesta.json()
     except requests.exceptions.Timeout:
-        return None, "No pude consultar la API de MINSAL a tiempo (se demoró demasiado)."
+        return _fallback_o_error("No pude consultar la API de MINSAL a tiempo (se demoró demasiado).")
     except requests.exceptions.RequestException:
-        return None, "La API de MINSAL no está respondiendo en este momento."
+        return _fallback_o_error("La API de MINSAL no está respondiendo en este momento.")
     except ValueError:
-        return None, "La API de MINSAL devolvió una respuesta inesperada (no era JSON válido)."
+        return _fallback_o_error("La API de MINSAL devolvió una respuesta inesperada (no era JSON válido).")
 
     if not isinstance(registros, list):
-        return None, "La API de MINSAL devolvió un formato inesperado."
+        return _fallback_o_error("La API de MINSAL devolvió un formato inesperado.")
 
     _cache[url] = (ahora, registros)
     return registros, None
@@ -103,8 +136,12 @@ def consultar_farmacias_de_turno(comuna: str) -> str:
     usuario pregunte por farmacias abiertas, de turno, o dónde comprar un
     medicamento ahora mismo."""
     registros, error = _consultar_api_minsal(URL_TURNOS)
-    if error:
+
+    es_snapshot = error and error.startswith("__SNAPSHOT__")
+    if error and not es_snapshot:
         return error
+    if not registros:
+        return error or f"No pude obtener datos de farmacias de turno en '{comuna}'."
 
     coincidencias = _filtrar_por_comuna(registros, comuna)
     if not coincidencias:
@@ -116,6 +153,14 @@ def consultar_farmacias_de_turno(comuna: str) -> str:
 
     lineas = [_formatear_local(r) for r in coincidencias]
     fecha = coincidencias[0].get("fecha", "fecha no informada")
+
+    if es_snapshot:
+        fecha_captura = error.replace("__SNAPSHOT__", "")
+        return (
+            f"⚠️ No pude conectar en vivo con MINSAL — mostrando un snapshot guardado "
+            f"del {fecha_captura} (puede estar desactualizado):\n" + "\n".join(lineas)
+        )
+
     return f"Farmacias de turno en {comuna} (dato en vivo de MINSAL, {fecha}):\n" + "\n".join(lineas)
 
 
@@ -128,14 +173,26 @@ def consultar_farmacias_registradas(comuna: str) -> str:
     comuna. NO uses esta tool si preguntan cuál está ABIERTA/DE TURNO ahora —
     para eso usa consultar_farmacias_de_turno."""
     registros, error = _consultar_api_minsal(URL_LOCALES)
-    if error:
+
+    es_snapshot = error and error.startswith("__SNAPSHOT__")
+    if error and not es_snapshot:
         return error
+    if not registros:
+        return error or f"No pude obtener el directorio de farmacias en '{comuna}'."
 
     coincidencias = _filtrar_por_comuna(registros, comuna)
     if not coincidencias:
         return f"No encontré farmacias registradas en '{comuna}' según el directorio de MINSAL."
 
     lineas = [_formatear_local(r) for r in coincidencias]
+
+    if es_snapshot:
+        fecha_captura = error.replace("__SNAPSHOT__", "")
+        return (
+            f"⚠️ No pude conectar en vivo con MINSAL — mostrando un snapshot guardado "
+            f"del {fecha_captura} (puede estar desactualizado):\n" + "\n".join(lineas)
+        )
+
     return (
         f"Farmacias registradas en {comuna} (directorio MINSAL, no todas están de turno ahora):\n"
         + "\n".join(lineas)
