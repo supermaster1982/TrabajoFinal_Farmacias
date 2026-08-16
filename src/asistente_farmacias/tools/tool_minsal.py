@@ -31,7 +31,7 @@ from langchain_core.tools import tool
 URL_TURNOS = "https://minsal-proxy.alexis-contrerasnaranjo.workers.dev/turnos"
 URL_LOCALES = "https://minsal-proxy.alexis-contrerasnaranjo.workers.dev/locales"
 
-TIMEOUT_SEGUNDOS = 5
+TIMEOUT_SEGUNDOS = 10
 CACHE_TTL_SEGUNDOS = 15 * 60  # 15 minutos, mismo valor que el ejemplo del enunciado
 
 # Caché en memoria del proceso: {url: (timestamp_guardado, registros)}
