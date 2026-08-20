@@ -283,6 +283,7 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 - `docs/proceso-revision-trazas.md` — protocolo de revisión humana periódica de trazas.
 - `docs/por-que-user-id.md` — razonamiento de diseño detrás de la autenticación por sesión anónima.
 - `docs/flujo-autenticacion.svg` — diagrama del flujo completo (crear sesión, preguntar, renovar token, rechazo de token falsificado).
+- `docs/proxy-minsal.md` — por qué las tools de MINSAL pasan por un proxy en Cloud Run Santiago (bloqueo de Cloudflare), y la cadena de resiliencia proxy → snapshot → error.
 
 ## Próximos pasos
 
