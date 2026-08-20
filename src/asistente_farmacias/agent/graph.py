@@ -167,6 +167,7 @@ class EstadoConversacion(TypedDict, total=False):
     fallo_tecnico_entrada: bool
     respuesta_agente: str
     contexto_tools: list[str]
+    citas: list[str]
     bloqueado_en_salida: bool
     razon_salida: str
     fallo_tecnico_salida: bool
@@ -329,9 +330,15 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
     tool_msgs = [m for m in mensajes_turno_actual if isinstance(m, ToolMessage)]
     contexto_tools = [m.content for m in tool_msgs]
     respuesta_limpia = _colapsar_texto_duplicado(mensajes[-1].content)
+    # Las citas se calculan acá pero NO se agregan al texto todavía —
+    # gate_salida debe evaluar la respuesta real del agente, sin el ruido
+    # de una línea de cita bibliográfica pegada al final (hallazgo real:
+    # la cita de un medicamento fuera del corpus, ej. "Venlafaxine" para
+    # una pregunta de "Viadil", podía influir en el criterio 4 de la
+    # guarda). Se agregan recién en _nodo_respuesta_ok, después de que la
+    # respuesta ya fue aprobada.
     citas = _extraer_citas(tool_msgs)
-    respuesta_limpia = _agregar_citas(respuesta_limpia, citas)
-    return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools}
+    return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools, "citas": citas}
 
 
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
@@ -358,7 +365,8 @@ def _nodo_respuesta_segura(estado: EstadoConversacion) -> EstadoConversacion:
 
 
 def _nodo_respuesta_ok(estado: EstadoConversacion) -> EstadoConversacion:
-    return {"respuesta_final": estado["respuesta_agente"]}
+    respuesta = _agregar_citas(estado["respuesta_agente"], estado.get("citas", []))
+    return {"respuesta_final": respuesta}
 
 
 def _routing_entrada(estado: EstadoConversacion) -> str:
