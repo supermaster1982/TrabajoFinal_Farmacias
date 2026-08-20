@@ -342,7 +342,20 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
 
 
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
-    historial = _obtener_preguntas_previas(estado["user_id"])
+    # A diferencia de gate_entrada, acá el historial NO debe incluir la
+    # pregunta del turno actual — _registrar_pregunta() ya la guardó en
+    # gate_entrada (antes de llegar aquí), así que _obtener_preguntas_previas
+    # la trae de vuelta como si fuera "un turno anterior". Sin este filtro,
+    # una pregunta que combina síntoma + medicamento en el MISMO mensaje
+    # (ej. "me duele la guata, ¿para qué sirve el Viadil?") termina
+    # comparándose contra sí misma en el criterio 4 — hallazgo real
+    # confirmado con evidencia (agosto 2026): el historial mostraba
+    # literalmente la pregunta actual como "anterior".
+    historial_completo = _obtener_preguntas_previas(estado["user_id"])
+    historial = "\n".join(
+        linea for linea in historial_completo.splitlines()
+        if linea.strip() != f"- {estado['pregunta']}"
+    )
     try:
         evaluacion = evaluar_salida(estado["respuesta_agente"], historial=historial, config=_lf_config())
         print(f"🚦 gate_salida · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
