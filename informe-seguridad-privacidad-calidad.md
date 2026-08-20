@@ -223,7 +223,7 @@ Se migró de un mini-eval que solo imprimía en consola a una evaluación formal
 
 La tool no pasa el JSON crudo al LLM — se aplican 5 pasos: validar esquema/timeout, normalizar texto, filtrar por comuna, interpretar turnos nocturnos, y responder solo con dato + límite. **Caché de 15 minutos** agregado (requisito explícito del enunciado que faltaba) — medido con trazas reales: latencia bajó de ~11.3s a ~4.8-5.2s en preguntas repetidas dentro de la ventana de caché.
 
-**Hallazgo real:** al probar con la comuna "Puente Alto", la API de turnos no devolvió ningún resultado — se confirmó que es una limitación real de la fuente oficial, no un error del código. El agente intenta automáticamente `consultar_farmacias_registradas` como alternativa.
+**Hallazgo crítico — bloqueo de Cloudflare desde hosting extranjero, y su solución.** Al desplegar, se detectó que la API de MINSAL (`midas.minsal.cl`) está detrás de Cloudflare, que **bloquea con 403 las IP de datacenter extranjeras**. Confirmado con evidencia real en tres frentes: GitHub Actions (runner en Azure, EE.UU. → 403), el deploy real en Render (ambos endpoints devolvían el mensaje de error), y Postman desde un computador chileno (funciona). No es un bloqueo por país sino por *tipo* de IP (datacenter vs. residencial), por lo que cambiar de plataforma de hosting extranjera no lo resuelve. La solución fue desplegar un **proxy propio en Google Cloud Run, región `southamerica-west1` (Santiago)**: al correr con IP chilena, el proxy sí puede consultar MINSAL, y el backend lo llama a él en vez de a MINSAL directo. Esto restaura el dato en vivo real (no snapshot). Como respaldo, si el proxy falla, la tool cae a un snapshot estático rotulado con fecha visible, y si tampoco hay snapshot, a un mensaje de error digno — cadena de resiliencia de tres niveles, ambos caminos (proxy en vivo y fallback snapshot) probados con evidencia. Detalle completo en `docs/proxy-minsal.md`.
 
 ---
 
@@ -257,7 +257,7 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 | 2 | El proveedor del LLM retira o suspende el modelo principal sin aviso | Baja-Media | Crítico si no se maneja | Cadena de fallback independiente para `GEN_MODEL` y `GUARD_MODEL` (sección 4), confirmada con evidencia real en LangSmith | Backend | ✅ |
 | 3 | El propio prompt del guardrail dispara la moderación del proveedor | Media (ya ocurrió) | Alto si no se corrige | Migración a texto plano + parseo manual | Backend | ✅ |
 | 4 | Dato de MINSAL desactualizado o inexistente para una comuna | Media | Alto | Fecha visible + fallback automático al directorio completo | Backend | ✅ |
-| 5 | API de MINSAL no responde (timeout, caída) | Media | Alto | Timeout explícito + manejo de excepciones por tipo + caché de 15 min | Backend | ✅ |
+| 5 | API de MINSAL no responde (timeout, caída, o bloqueo de Cloudflare a IP de datacenter) | Media-Alta (bloqueo confirmado) | Alto | Proxy propio en Cloud Run Santiago (IP chilena) esquiva el bloqueo de Cloudflare; si el proxy falla, cadena de fallback proxy → snapshot rotulado con fecha → mensaje digno. Timeout 10s + caché 15 min. Ver `docs/proxy-minsal.md` | Backend | ✅ |
 | 6 | Preguntas de salud quedan registradas sin política de retención clara | Media | Medio | Proceso de revisión humana documentado (`docs/proceso-revision-trazas.md`); pendiente política formal de retención/anonimización para uso real | Backend / Producto | ⏳ parcial |
 | 7 | Delay de ingesta de Langfuse afecta la demo en vivo | Alta (observado) | Bajo | LangSmith como observabilidad principal (instantáneo) | Backend | ✅ |
 | 8 | El re-rank del RAG agrega latencia sin garantía de mejora | Media | Bajo-Medio | Mini-eval cuantitativo; desactivado por defecto, paralelizado si se activa | Backend | ✅ |
@@ -281,7 +281,7 @@ Se documentó un protocolo simple (`docs/proceso-revision-trazas.md`): frecuenci
 
 ## 8. Limitaciones conocidas y próximos pasos
 
-1. **Despliegue en la nube** — pendiente, único punto real de la rúbrica que falta (Dockerfile ya existe).
+1. **Despliegue en la nube** — backend y front desplegados en Render; MINSAL en vivo resuelto vía proxy en Cloud Run Santiago (ver sección 5.6 y `docs/proxy-minsal.md`), confirmado con evidencia real: pregunta de farmacias de turno respondida con dato en vivo (sin advertencia de snapshot) directamente desde el front público desplegado. Pendiente solo el ensayo de la demo end-to-end con todo el equipo (criterio 7).
 2. **Inconsistencia de UX en `gate_entrada`** (no de seguridad) — a veces bloquea de más una pregunta genérica cuando hubo un síntoma mencionado en un turno anterior (sección 3.5); el riesgo real de seguridad equivalente ya está cerrado en `gate_salida` (sección 3.5, matriz de riesgos #20).
 3. **Disclaimer injustificado intermitente en `GEN_MODEL`** (no de seguridad) — el agente a veces agrega un disclaimer de evaluación profesional sin que la pregunta lo amerite; detectado y medido por la métrica `sin_disclaimer_injustificado`, no perseguido con un fix de prompt por decisión consciente de priorización (sección 5.5).
 4. **Política formal de retención/anonimización de trazas** — existe el proceso de revisión (sección 6.3), falta la política de cuánto tiempo se conservan los datos.
