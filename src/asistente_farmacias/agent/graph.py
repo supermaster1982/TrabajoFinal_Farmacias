@@ -248,6 +248,48 @@ def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
         # bloqueada o no — para que el próximo turno la recuerde igual.
         _registrar_pregunta(estado["user_id"], estado["pregunta"])
 
+_CITA_RAG_RE = re.compile(r"\[Fuente: (?P<fuente>[^—]+) — (?P<nombre>[^·]+)· relevancia=[\d.]+\]")
+
+
+def _extraer_citas(tool_messages: list[ToolMessage]) -> list[str]:
+    """Arma las líneas de cita a partir de las tools realmente invocadas en
+    este turno — determinístico, no depende de que el LLM decida mencionar
+    la fuente en su respuesta (requisito del enunciado: "siempre citando la
+    fuente" al entregar información de una ficha o dato de MINSAL). Mismo
+    principio que _criterio4_verificado en clinical_gate.py: no confiar
+    ciegamente en el LLM cuando se puede verificar/forzar en código."""
+    citas: list[str] = []
+    for m in tool_messages:
+        nombre_tool = getattr(m, "name", "") or ""
+        contenido = m.content if isinstance(m.content, str) else str(m.content)
+
+        if any(err in contenido for err in ("no está respondiendo", "no pude consultar", "formato inesperado")):
+            continue  # fallo técnico — no hay dato real que citar
+
+        if nombre_tool == "buscar_ficha_medicamento":
+            for match in _CITA_RAG_RE.finditer(contenido):
+                cita = f"Fuente: {match.group('fuente').strip()} — ficha de {match.group('nombre').strip()}"
+                if cita not in citas:
+                    citas.append(cita)
+
+        elif nombre_tool in ("consultar_farmacias_de_turno", "consultar_farmacias_registradas"):
+            if "snapshot guardado del" in contenido:
+                fecha_match = re.search(r"snapshot guardado del ([^(]+)\(", contenido)
+                fecha = fecha_match.group(1).strip() if fecha_match else "fecha no disponible"
+                cita = f"Fuente: Ministerio de Salud de Chile (MINSAL) — dato guardado el {fecha}, sin conexión en vivo"
+            else:
+                cita = "Fuente: Ministerio de Salud de Chile (MINSAL)"
+            if cita not in citas:
+                citas.append(cita)
+
+    return citas
+
+
+def _agregar_citas(respuesta: str, citas: list[str]) -> str:
+    """Agrega las citas al final de la respuesta, una sola vez."""
+    if not citas:
+        return respuesta
+    return respuesta + "\n\n" + "\n".join(citas)
 
 def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
     config = {
@@ -274,8 +316,21 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
         }
 
     mensajes = resultado["messages"]
-    contexto_tools = [m.content for m in mensajes if isinstance(m, ToolMessage)]
+    # El checkpointer acumula TODOS los mensajes de la conversación, no
+    # solo los de este turno — sin este filtro, las citas (y el contexto
+    # para faithfulness) de preguntas anteriores se mezclan con las del
+    # turno actual. Filtro: solo lo que vino DESPUÉS del último HumanMessage
+    # (la pregunta actual), que siempre queda al final de la lista.
+    ultimo_human_idx = max(
+        (i for i, m in enumerate(mensajes) if isinstance(m, HumanMessage)),
+        default=0,
+    )
+    mensajes_turno_actual = mensajes[ultimo_human_idx:]
+    tool_msgs = [m for m in mensajes_turno_actual if isinstance(m, ToolMessage)]
+    contexto_tools = [m.content for m in tool_msgs]
     respuesta_limpia = _colapsar_texto_duplicado(mensajes[-1].content)
+    citas = _extraer_citas(tool_msgs)
+    respuesta_limpia = _agregar_citas(respuesta_limpia, citas)
     return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools}
 
 
