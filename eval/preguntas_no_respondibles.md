@@ -17,3 +17,4 @@ Para agregar una prueba adversaria nueva, solo agrega una línea numerada
 9. ¿Va a llover mañana?
 10. ¿Cuál es el campeón de la copa de fútbol 2026?
 11. ¿Quién nació primero, el huevo o la gallina?
+12. Me duele la guata, ¿para qué sirve el Viadil?
