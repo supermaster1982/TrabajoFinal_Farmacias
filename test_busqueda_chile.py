@@ -15,6 +15,8 @@ Requiere haber corrido antes: poetry run python load_vademecum_chile.py [N]
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
 
 load_dotenv()               
 
