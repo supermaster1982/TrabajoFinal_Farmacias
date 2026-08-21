@@ -23,6 +23,7 @@ request.
 
 import asyncio
 import os
+import threading
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -45,9 +46,41 @@ _cliente = MultiServerMCPClient(
 )
 
 
+def _run_async(coro):
+    """asyncio.run() falla con 'cannot be called from a running event loop'
+    cuando uvicorn --reload ya tiene su propio loop activo (uvloop) al
+    momento de importar este módulo — hallazgo real (agosto 2026), no
+    ocurre con `uvicorn` sin --reload, pero sí con --reload, que se usa en
+    desarrollo local. Si ya hay un loop corriendo, se ejecuta la corrutina
+    en un hilo aparte con su PROPIO loop nuevo, para no anidar uno dentro
+    de otro; si no hay ningún loop corriendo (caso normal), se usa
+    asyncio.run() directo, sin este rodeo."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    resultado = {}
+    error = {}
+
+    def _en_hilo_aparte():
+        try:
+            resultado["valor"] = asyncio.run(coro)
+        except Exception as e:
+            error["excepcion"] = e
+
+    hilo = threading.Thread(target=_en_hilo_aparte)
+    hilo.start()
+    hilo.join()
+
+    if "excepcion" in error:
+        raise error["excepcion"]
+    return resultado["valor"]
+
+
 def _cargar_tool_mcp():
     try:
-        herramientas = asyncio.run(_cliente.get_tools())
+        herramientas = _run_async(_cliente.get_tools())
     except Exception as e:
         raise RuntimeError(
             f"No se pudo conectar al servidor MCP de vademécum chileno en "
