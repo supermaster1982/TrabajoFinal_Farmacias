@@ -36,6 +36,8 @@ from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_registradas,
 )
 from asistente_farmacias.tools.tool_rag import buscar_ficha_medicamento
+# - agrego nueva tool de vadecum_chile
+from asistente_farmacias.tools.tool_rag_chile import buscar_ficha_medicamento_chile
 from asistente_farmacias.guardrails.clinical_gate import (
     MENSAJE_SEGURO,
     evaluar_entrada,
@@ -88,8 +90,12 @@ SYSTEM_PROMPT = (
     "farmacia está ABIERTA/DE TURNO ahora mismo. Usa "
     "'consultar_farmacias_registradas' cuando pregunten si existe una "
     "farmacia en particular o quieran un listado general (sin importar si "
-    "está abierta ahora). Usa 'buscar_ficha_medicamento' para preguntas "
-    "sobre qué es un medicamento o para qué sirve. "
+    "está abierta ahora). Usa 'buscar_ficha_medicamento' (vademécum internacional) PRIMERO para "
+    "preguntas sobre qué es un medicamento o para qué sirve. Si esa tool "
+    "responde que no encontró información suficientemente relevante, intenta "
+    "también 'buscar_ficha_medicamento_chile' (vademécum chileno) antes de "
+    "decirle a la persona que no tienes información — puede ser una marca "
+    "registrada en Chile que no está en el vademécum internacional. "
     "Si 'consultar_farmacias_de_turno' no encuentra resultados para una "
     "comuna, intenta también 'consultar_farmacias_registradas' para esa "
     "misma comuna y ofrece esa información como alternativa, dejando claro "
@@ -153,7 +159,12 @@ _modelo_con_fallback = _modelo_principal.with_fallbacks(_modelos_respaldo)
 
 _react_agent = create_react_agent(
     model=_modelo_con_fallback,
-    tools=[consultar_farmacias_de_turno, consultar_farmacias_registradas, buscar_ficha_medicamento],
+    tools=[
+        consultar_farmacias_de_turno,
+        consultar_farmacias_registradas,
+        buscar_ficha_medicamento,
+        buscar_ficha_medicamento_chile,
+    ],
     prompt=SYSTEM_PROMPT,
     checkpointer=_checkpointer,
 )
@@ -267,7 +278,7 @@ def _extraer_citas(tool_messages: list[ToolMessage]) -> list[str]:
         if any(err in contenido for err in ("no está respondiendo", "no pude consultar", "formato inesperado")):
             continue  # fallo técnico — no hay dato real que citar
 
-        if nombre_tool == "buscar_ficha_medicamento":
+        if nombre_tool in ("buscar_ficha_medicamento", "buscar_ficha_medicamento_chile"):
             for match in _CITA_RAG_RE.finditer(contenido):
                 cita = f"Fuente: {match.group('fuente').strip()} — ficha de {match.group('nombre').strip()}"
                 if cita not in citas:
@@ -357,7 +368,9 @@ def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
         if linea.strip() != f"- {estado['pregunta']}"
     )
     try:
-        evaluacion = evaluar_salida(estado["respuesta_agente"], historial=historial, config=_lf_config())
+        evaluacion = evaluar_salida(
+            estado["respuesta_agente"], historial=historial, pregunta_actual=estado["pregunta"], config=_lf_config()
+        )
         print(f"🚦 gate_salida · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
         return {
             "bloqueado_en_salida": evaluacion.es_peligroso,

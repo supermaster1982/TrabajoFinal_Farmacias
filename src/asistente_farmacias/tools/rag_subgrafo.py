@@ -38,6 +38,38 @@ from qdrant_client import QdrantClient
 
 from asistente_farmacias.resilience import invocar_con_fallback
 
+_PROMPT_VERIFICAR_MEDICAMENTO = """Un usuario preguntó por un medicamento. Un
+sistema de búsqueda encontró una ficha con el nombre que se muestra abajo.
+Considerando que la pregunta puede venir en otro idioma, con errores de
+tipeo, abreviada, o usando el nombre comercial en vez del genérico (o
+viceversa): ¿es razonable que la ficha encontrada sea sobre EL MISMO
+medicamento que preguntó la persona, o uno directamente relacionado
+(ej. mismo principio activo)?
+
+Pregunta del usuario: {pregunta}
+Nombre de la ficha encontrada: {nombre_ficha}
+
+Responde SOLO "si" o "no", nada más."""
+
+
+def _es_medicamento_relacionado(pregunta: str, nombre_ficha: str, config: RunnableConfig) -> bool:
+    """Verificación con LLM, no con comparación de texto (prefijos,
+    substrings) — un LLM entiende traducciones, typos y abreviaciones mucho
+    mejor que cualquier regla de texto rígida (ej. "paractml" -> Paracetamol,
+    "Aartfenacin" -> nada relacionado con "Allopurinol"). Si falla la
+    llamada, se asume relacionado (fail-open acá: es preferible mostrar un
+    resultado dudoso que bloquear uno bueno por un error técnico de esta
+    verificación, ya que el LLM que arma la respuesta final igual puede
+    detectar y aclarar un desajuste, como ya se confirmó con evidencia real)."""
+    try:
+        resultado = invocar_con_fallback(
+            _PROMPT_VERIFICAR_MEDICAMENTO.format(pregunta=pregunta, nombre_ficha=nombre_ficha),
+            config=config,
+        )
+        return resultado.content.strip().lower().startswith("si")
+    except Exception:
+        return True
+
 EMBED_MODEL = "text-embedding-3-large"
 EMBED_DIMS = 256
 COLLECTION = "vademecum_medicamentos"
@@ -116,7 +148,18 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
 
     Primero aplica el filtro de similitud mínima de embeddings (siempre
     activo, gratis, sin LLM). Recién después, si RERANK_ACTIVADO=true,
-    hace el re-rank LLM en paralelo sobre lo que sobrevivió ese filtro."""
+    hace el re-rank LLM en paralelo sobre lo que sobrevivió ese filtro.
+
+    Hallazgo real (agosto 2026): al agregar el vademécum chileno como
+    fallback, se detectó que el umbral de similitud (0.4) deja pasar
+    candidatas SIN relación real cuando el medicamento preguntado no existe
+    en absoluto en este corpus (ej. "Aartfenacin" -> traía "Allopurinol",
+    score 0.508, sin relación real). El umbral nunca fue diseñado para
+    distinguir "no hay nada aquí" de "esto es lo más parecido que hay" —
+    solo para no descartar candidatas que sí existían. Se agregó una
+    verificación adicional con LLM (más robusta que comparar texto: entiende
+    traducciones, typos, abreviaciones) SOLO sobre la mejor candidata, antes
+    de aceptar el resultado del filtro de embeddings como válido."""
     candidatas = estado["candidatas"]
     scores_embedding = estado["scores_embedding"]
 
@@ -129,6 +172,15 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
 
     if not candidatas_filtradas:
         print("🔍 filtro de embeddings · ninguna candidata superó el umbral mínimo (LLM rerank NO se llamó)")
+        return {"puntuadas": []}
+
+    # Verificación adicional: ¿la MEJOR candidata (la de mayor score) tiene
+    # relación real con lo preguntado? Si no, se descartan todas — si la
+    # mejor no sirve, las demás (con score aún más bajo) tampoco.
+    mejor_ficha = candidatas_filtradas[0]
+    nombre_mejor = mejor_ficha.metadata.get("drug_name", mejor_ficha.page_content[:50])
+    if not _es_medicamento_relacionado(estado["pregunta"], nombre_mejor, config):
+        print(f"🔍 verificación LLM · '{nombre_mejor}' no está relacionado con la pregunta — se descarta todo")
         return {"puntuadas": []}
 
     if not RERANK_ACTIVADO:

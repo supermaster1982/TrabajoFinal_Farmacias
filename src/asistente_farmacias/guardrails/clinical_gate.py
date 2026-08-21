@@ -141,12 +141,22 @@ repetir el síntoma — cuenta igual como riesgoso, porque el contexto ya
 establece de qué está hablando.
 
 Una pregunta genérica tipo "¿qué es/para qué sirve X?" — sin pedir
-cantidad, dosis, ni horario — NUNCA cuenta como riesgosa, incluso si el
-historial menciona un síntoma. Ese caso lo maneja el asistente que
-responde después (anteponiendo una sugerencia de evaluación profesional),
-no esta guarda bloqueando la pregunta entera. La sola mención de un
-síntoma en el historial, por sí sola, NO convierte en riesgosa una
-pregunta que de otro modo sería informativa.
+cantidad, dosis, ni horario, y SIN mencionar un síntoma en esta MISMA
+pregunta — no cuenta como riesgosa solo porque el HISTORIAL de turnos
+anteriores mencione un síntoma. Ese caso (síntoma en un turno anterior,
+pregunta genérica después) lo maneja el asistente que responde
+después (anteponiendo una sugerencia de evaluación profesional), no
+esta guarda bloqueando la pregunta entera.
+
+Distinto es si la persona menciona un síntoma o malestar Y, en esa MISMA
+pregunta, nombra o pregunta por un medicamento específico — eso SÍ cuenta
+como riesgoso siempre, sin importar si ese medicamento existe o no en el
+vademécum, y sin necesidad de consultarlo: mencionar un síntoma propio y
+preguntar por un medicamento concreto en el mismo mensaje ya indica que la
+persona busca saber si ese medicamento le sirve para lo que le pasa —
+exactamente el tipo de automedicación que este asistente no debe
+facilitar. Bloquéala aquí mismo, antes de que se intente buscar el
+medicamento.
 
 Pregunta a evaluar:
 {pregunta}
@@ -176,8 +186,8 @@ Evalúa si el texto a evaluar termina haciendo alguna de estas cosas:
    partir de síntomas que describió (diagnóstico implícito).
 3. Evaluando si es seguro combinar un medicamento con una alergia, otro
    medicamento, o una condición de salud particular de esa persona.
-4. El HISTORIAL de abajo contiene una mención de un síntoma o malestar
-   personal (dicho en un turno ANTERIOR, no en este texto), Y el texto a
+4. El HISTORIAL de abajo, O LA PREGUNTA ACTUAL de la persona, contienen una
+   mención de un síntoma o malestar personal, Y el texto a
    evaluar entrega información de uso, clase, indicación, o cualquier dato
    descriptivo sobre UN MEDICAMENTO — sin importar si es el medicamento por
    el que preguntó la persona, uno distinto devuelto por error de búsqueda,
@@ -198,6 +208,9 @@ Evalúa si el texto a evaluar termina haciendo alguna de estas cosas:
 Historial de preguntas anteriores en esta conversación (puede estar vacío):
 {historial}
 
+Pregunta actual de la persona (el turno que generó el texto a evaluar):
+{pregunta_actual}
+
 Texto a evaluar:
 {respuesta}
 
@@ -217,23 +230,37 @@ def evaluar_entrada(pregunta: str, historial: str = "", config: dict | None = No
     return _parsear_evaluacion(texto)
 
 
-def evaluar_salida(respuesta: str, historial: str = "", config: dict | None = None) -> EvaluacionClinica:
+def evaluar_salida(
+    respuesta: str, historial: str = "", pregunta_actual: str = "", config: dict | None = None
+) -> EvaluacionClinica:
     """Guarda de SALIDA: corre después de que el agente ya generó una respuesta,
     antes de devolverla al usuario.
 
     A diferencia de evaluar_entrada, aquí se verifica en código si el
     criterio 4 (coincidencia síntoma↔indicación) tiene respaldo real en el
     historial — si el LLM lo citó pero la cita no aparece de verdad ahí, se
-    descarta ese criterio específico sin afectar los otros 3."""
+    descarta ese criterio específico sin afectar los otros 3.
+
+    pregunta_actual: hallazgo real (agosto 2026) — cuando el síntoma y la
+    pregunta del medicamento vienen en el MISMO mensaje (ej. "me duele la
+    guata, ¿para qué sirve el Viadil?"), el historial de turnos ANTERIORES
+    llega vacío a propósito (se filtra la pregunta actual para evitar que
+    se compare contra sí misma, ver graph.py). Sin este parámetro, el
+    criterio 4 nunca tenía ninguna mención de síntoma que verificar en ese
+    caso — el criterio 4 se volvía inútil justo para el caso que originalmente
+    motivó crearlo. Se agrega la pregunta actual al texto que ve el LLM
+    (y a lo que _criterio4_verificado compara), sin mezclarla con el
+    historial de turnos previos."""
     historial_normalizado = historial or "(sin preguntas anteriores)"
+    contexto_para_verificar = f"{historial_normalizado}\n- {pregunta_actual}" if pregunta_actual else historial_normalizado
     texto = invocar_con_fallback(
-        _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial_normalizado),
+        _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial_normalizado, pregunta_actual=pregunta_actual or "(no informada)"),
         config=config,
     ).content
 
     evaluacion, criterios, cita = _parsear_evaluacion_salida(texto)
 
-    if "4" in criterios and not _criterio4_verificado(historial_normalizado, cita):
+    if "4" in criterios and not _criterio4_verificado(contexto_para_verificar, cita):
         criterios = [c for c in criterios if c != "4"]
         if not criterios:
             # El único criterio que disparó el bloqueo era el 4, y no tiene
