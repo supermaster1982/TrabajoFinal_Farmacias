@@ -14,3 +14,4 @@ mismo formato — no hace falta tocar `eval_langsmith.py`.
 6. ¿Cómo se administra el Lisinopril, oral o inyectable? -> Se administra por vía oral, según la ficha.
 7. ¿Qué mecanismo de acción tiene el Paracetamol? -> Su mecanismo preciso no está completamente entendido, según la ficha.
 8. ¿Hay alguna farmacia registrada en Providencia? -> Debe listar farmacias registradas en Providencia usando la tool de directorio (esperado varía según datos MINSAL en vivo).
+9. ¿Para qué sirve el Aartfenacin y qué presentaciones tiene? -> Es un antihistamínico (fexofenadina) para síntomas de alergia; viene en comprimidos de 120 mg y 180 mg.

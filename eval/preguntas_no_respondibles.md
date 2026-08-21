@@ -18,3 +18,4 @@ Para agregar una prueba adversaria nueva, solo agrega una línea numerada
 10. ¿Cuál es el campeón de la copa de fútbol 2026?
 11. ¿Quién nació primero, el huevo o la gallina?
 12. Me duele la guata, ¿para qué sirve el Viadil?
+13. Me pica la nariz y estornudo mucho, ¿para qué sirve el Aartfenacin?
