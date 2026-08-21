@@ -1,51 +1,74 @@
 """
-tool_rag_chile.py — Tool de búsqueda del vademécum CHILENO (material de
-clase, provisto por el profesor). Mismo patrón que tool_rag.py: esta tool
-solo invoca el subgrafo y formatea el resultado — la búsqueda real
-(retrieve/rerank/filter, umbral 0.54) vive en rag_subgrafo_chile.py.
+tool_rag_chile.py — Cliente MCP para el vademécum CHILENO.
 
-Rol en el sistema: fuente SECUNDARIA. El agente la usa solo si
-'buscar_ficha_medicamento' (vademécum de Kaggle, ya evaluado y probado)
-no encontró información suficientemente relevante — mismo patrón de
-fallback que ya existe entre 'consultar_farmacias_de_turno' y
-'consultar_farmacias_registradas' en tool_minsal.py. Esto evita cualquier
-regresión sobre las 20 preguntas del dataset formal (todas encuentran
-resultado en Kaggle, así que nunca llegan a necesitar esta tool) y cubre
-justo el caso que causó el hallazgo de Viadil: un medicamento chileno
-ausente del corpus internacional.
+Ya no llama directo a rag_subgrafo_chile.py — consume la búsqueda a través
+del protocolo MCP, conectándose al servidor definido en
+servidor_vademecum_chile.py (debe estar CORRIENDO antes de levantar la API
+principal). Requisito del profesor: exponer esta fuente como API o MCP,
+consumida desde la tool del agente — se eligió MCP.
+
+Por qué un cliente y no la función directa: la lógica de búsqueda
+(retrieve -> filtro de similitud 0.54 -> verificación de relevancia LLM)
+sigue siendo exactamente la misma — rag_subgrafo_chile.py no se duplicó,
+el servidor MCP solo la envuelve. Este archivo solo cambia CÓMO se llega
+a ella: por protocolo MCP en vez de un import directo de Python, mismo
+patrón de MultiServerMCPClient que protocolo_mcp.ipynb (Clase 5.4).
+
+`create_react_agent` (en graph.py) construye su lista de tools al importar
+el módulo — de forma síncrona — pero `MultiServerMCPClient.get_tools()` es
+async. Se resuelve con asyncio.run() a nivel de módulo: corre UNA vez, al
+importar, antes de que uvicorn levante su propio event loop — no en cada
+request.
 """
 
-from langchain_core.tools import tool
-from langchain_core.runnables import RunnableConfig
+import asyncio
+import os
 
-from asistente_farmacias.tools.rag_subgrafo_chile import invocar_subgrafo_chile
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+# MCP_VADEMECUM_CHILE_URL: la URL completa del servidor MCP. En local, con
+# ambos servicios en la misma máquina, el valor por defecto (localhost)
+# funciona sin configurar nada. En producción (Render u otro hosting), el
+# MCP corre como un servicio aparte con su propia URL pública — hay que
+# setear esta variable de entorno para que apunte ahí, en vez de asumir
+# localhost. Pendiente: coordinar con el equipo cuando se despliegue el
+# servidor MCP.
+_MCP_URL = os.environ.get("MCP_VADEMECUM_CHILE_URL", "http://localhost:8803/mcp")
+
+_cliente = MultiServerMCPClient(
+    {
+        "vademecum_chile": {
+            "transport": "streamable_http",
+            "url": _MCP_URL,
+        },
+    }
+)
 
 
-@tool
-def buscar_ficha_medicamento_chile(medicamento: str, config: RunnableConfig = None) -> str:
-    """Busca información general de un medicamento en el vademécum CHILENO
-    (marcas y genéricos registrados en Chile: mecanismo de acción, modo de
-    administración, contraindicaciones, efectos adversos). Úsala SOLO si
-    'buscar_ficha_medicamento' (vademécum internacional) ya respondió que no
-    encontró información suficientemente relevante sobre ese medicamento —
-    es la segunda fuente, no la primera. NUNCA para decidir una dosis para
-    una persona ni indicar tratamiento."""
+def _cargar_tool_mcp():
     try:
-        filtradas = invocar_subgrafo_chile(medicamento, config=config)
+        herramientas = asyncio.run(_cliente.get_tools())
     except Exception as e:
-        return f"No pude consultar el vademécum chileno en este momento ({e!r})."
+        raise RuntimeError(
+            f"No se pudo conectar al servidor MCP de vademécum chileno en "
+            f"{_MCP_URL} ({e!r}). ¿Está corriendo "
+            f"'poetry run python servidor_vademecum_chile.py' en otra terminal? "
+            f"Debe iniciarse ANTES que la API principal."
+        ) from e
 
-    if not filtradas:
-        return (
-            f"No encontré información suficientemente relevante sobre "
-            f"'{medicamento}' tampoco en el vademécum chileno indexado."
+    try:
+        return next(h for h in herramientas if h.name == "buscar_ficha_medicamento_chile")
+    except StopIteration:
+        raise RuntimeError(
+            f"El servidor MCP en {_MCP_URL} respondió, pero no expone ninguna "
+            f"tool llamada 'buscar_ficha_medicamento_chile'. Herramientas "
+            f"encontradas: {[h.name for h in herramientas]}"
         )
 
-    bloques = []
-    for ficha, score in filtradas:
-        bloques.append(
-            f"[Fuente: {ficha.metadata.get('fuente', 'vademécum chileno')} — "
-            f"{ficha.metadata.get('nombre', '?')} · relevancia={score:.2f}]\n"
-            f"{ficha.page_content}"
-        )
-    return "\n\n".join(bloques)
+
+# Nombre idéntico al de la versión anterior (implementación directa) — así
+# graph.py no necesita ningún cambio: sigue importando
+# 'buscar_ficha_medicamento_chile' desde este mismo módulo, y
+# _extraer_citas() en graph.py sigue reconociendo el nombre de la tool tal
+# cual, sin tocar esa lógica.
+buscar_ficha_medicamento_chile = _cargar_tool_mcp()
