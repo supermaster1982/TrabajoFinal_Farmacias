@@ -14,17 +14,32 @@ el servidor MCP solo la envuelve. Este archivo solo cambia CÓMO se llega
 a ella: por protocolo MCP en vez de un import directo de Python, mismo
 patrón de MultiServerMCPClient que protocolo_mcp.ipynb (Clase 5.4).
 
-`create_react_agent` (en graph.py) construye su lista de tools al importar
-el módulo — de forma síncrona — pero `MultiServerMCPClient.get_tools()` es
-async. Se resuelve con asyncio.run() a nivel de módulo: corre UNA vez, al
-importar, antes de que uvicorn levante su propio event loop — no en cada
-request.
+Hallazgo real (agosto 2026) — conexión nueva en cada llamada, no una
+compartida: la primera versión de este archivo creaba UN solo
+MultiServerMCPClient a nivel de módulo, reutilizado en cada pregunta.
+Funcionaba para descubrir la tool al arrancar (ver el log del servidor MCP:
+una sesión abierta y cerrada al importar), pero al invocarla de verdad
+durante una pregunta real, la llamada NUNCA llegaba al servidor (sin
+ninguna sesión nueva en el log del MCP) y el agente recibía un error
+genérico. Causa probable: el cliente compartido conserva recursos internos
+(ej. un cliente HTTP async) atados al event loop en el que se creó — como
+ese cliente se obtuvo con asyncio.run() en un hilo aparte (ver _run_async
+más abajo, necesario porque uvicorn --reload ya corre su propio loop), ese
+loop se cierra apenas termina el hilo, dejando esos recursos inválidos
+para cualquier llamada posterior desde el loop real de FastAPI.
+
+Solución: cada llamada crea su PROPIO MultiServerMCPClient desde cero,
+vive y muere dentro del mismo hilo/loop, sin nada compartido entre
+invocaciones. Cuesta un poco de latencia extra por reconectar en cada
+pregunta, aceptable para el volumen de este proyecto — la robustez importa
+más que ese costo menor.
 """
 
 import asyncio
 import os
 import threading
 
+from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 # MCP_VADEMECUM_CHILE_URL: la URL completa del servidor MCP. En local, con
@@ -36,25 +51,13 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 # servidor MCP.
 _MCP_URL = os.environ.get("MCP_VADEMECUM_CHILE_URL", "http://localhost:8803/mcp")
 
-_cliente = MultiServerMCPClient(
-    {
-        "vademecum_chile": {
-            "transport": "streamable_http",
-            "url": _MCP_URL,
-        },
-    }
-)
-
 
 def _run_async(coro):
     """asyncio.run() falla con 'cannot be called from a running event loop'
-    cuando uvicorn --reload ya tiene su propio loop activo (uvloop) al
-    momento de importar este módulo — hallazgo real (agosto 2026), no
-    ocurre con `uvicorn` sin --reload, pero sí con --reload, que se usa en
-    desarrollo local. Si ya hay un loop corriendo, se ejecuta la corrutina
-    en un hilo aparte con su PROPIO loop nuevo, para no anidar uno dentro
-    de otro; si no hay ningún loop corriendo (caso normal), se usa
-    asyncio.run() directo, sin este rodeo."""
+    cuando uvicorn --reload ya tiene su propio loop activo (uvloop). Si ya
+    hay un loop corriendo, se ejecuta la corrutina en un hilo aparte con su
+    PROPIO loop nuevo; si no hay ninguno (caso normal), se usa asyncio.run()
+    directo."""
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -78,30 +81,34 @@ def _run_async(coro):
     return resultado["valor"]
 
 
-def _cargar_tool_mcp():
+async def _llamar_mcp(medicamento: str) -> str:
+    """Conexión MCP nueva de punta a punta: se crea, se usa, se descarta —
+    ver docstring del módulo para el hallazgo que motivó este diseño."""
+    cliente = MultiServerMCPClient(
+        {
+            "vademecum_chile": {
+                "transport": "streamable_http",
+                "url": _MCP_URL,
+            },
+        }
+    )
+    herramientas = await cliente.get_tools()
+    herramienta = next(h for h in herramientas if h.name == "buscar_ficha_medicamento_chile")
+    return await herramienta.ainvoke({"medicamento": medicamento})
+
+
+@tool
+def buscar_ficha_medicamento_chile(medicamento: str) -> str:
+    """Busca información general de un medicamento en el vademécum CHILENO
+    (marcas y genéricos registrados en Chile: mecanismo de acción, modo de
+    administración, contraindicaciones, efectos adversos), vía protocolo
+    MCP. Úsala SOLO si 'buscar_ficha_medicamento' (vademécum internacional)
+    ya respondió que no encontró información suficientemente relevante
+    sobre ese medicamento — es la segunda fuente, no la primera. NUNCA
+    para decidir una dosis para una persona ni indicar tratamiento."""
     try:
-        herramientas = _run_async(_cliente.get_tools())
+        return _run_async(_llamar_mcp(medicamento))
     except Exception as e:
-        raise RuntimeError(
-            f"No se pudo conectar al servidor MCP de vademécum chileno en "
-            f"{_MCP_URL} ({e!r}). ¿Está corriendo "
-            f"'poetry run python servidor_vademecum_chile.py' en otra terminal? "
-            f"Debe iniciarse ANTES que la API principal."
-        ) from e
-
-    try:
-        return next(h for h in herramientas if h.name == "buscar_ficha_medicamento_chile")
-    except StopIteration:
-        raise RuntimeError(
-            f"El servidor MCP en {_MCP_URL} respondió, pero no expone ninguna "
-            f"tool llamada 'buscar_ficha_medicamento_chile'. Herramientas "
-            f"encontradas: {[h.name for h in herramientas]}"
-        )
-
-
-# Nombre idéntico al de la versión anterior (implementación directa) — así
-# graph.py no necesita ningún cambio: sigue importando
-# 'buscar_ficha_medicamento_chile' desde este mismo módulo, y
-# _extraer_citas() en graph.py sigue reconociendo el nombre de la tool tal
-# cual, sin tocar esa lógica.
-buscar_ficha_medicamento_chile = _cargar_tool_mcp()
+        # Mismo texto ("no pude consultar") que ya reconoce _extraer_citas()
+        # en graph.py para no agregar una cita cuando la tool falló técnicamente.
+        return f"No pude consultar el vademécum chileno en este momento ({e!r})."

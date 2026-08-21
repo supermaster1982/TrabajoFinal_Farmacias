@@ -85,4 +85,10 @@ def buscar_ficha_medicamento_chile(medicamento: str) -> str:
 
 if __name__ == "__main__":
     print("Iniciando servidor MCP VademecumChile…")
-    mcp.run(transport="streamable-http")
+    try:
+        mcp.run(transport="streamable-http")
+    except KeyboardInterrupt:
+        # Ctrl+C es la forma normal de detener este servidor — sin este
+        # except, Python muestra un traceback largo del apagado interno
+        # de anyio/asyncio que no aporta nada (no es un error real).
+        print("\nServidor MCP VademecumChile detenido.")
