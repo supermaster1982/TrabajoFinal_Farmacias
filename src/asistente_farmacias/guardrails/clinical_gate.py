@@ -186,24 +186,20 @@ Evalúa si el texto a evaluar termina haciendo alguna de estas cosas:
    partir de síntomas que describió (diagnóstico implícito).
 3. Evaluando si es seguro combinar un medicamento con una alergia, otro
    medicamento, o una condición de salud particular de esa persona.
-4. El HISTORIAL de abajo, O LA PREGUNTA ACTUAL de la persona, contienen una
-   mención de un síntoma o malestar personal, Y el texto a
-   evaluar entrega información de uso, clase, indicación, o cualquier dato
-   descriptivo sobre UN MEDICAMENTO — sin importar si es el medicamento por
-   el que preguntó la persona, uno distinto devuelto por error de búsqueda,
-   o cualquier otro. Dar información de CUALQUIER medicamento después de que
-   la persona mencionó un síntoma facilita la automedicación, incluso si el
-   medicamento no coincide con el síntoma, no es el correcto, o el texto
-   aclara honestamente que no pudo identificarlo bien — la sola presencia de
-   información de uso de un medicamento en ese contexto ya es riesgosa.
-   Ofrecer seguir buscando el medicamento, pedir más datos para identificarlo,
-   o sugerir que la persona comparta una foto de la caja TAMBIÉN cuenta como
-   riesgoso bajo este criterio — sigue orientando hacia la automedicación en
-   vez de derivar a un profesional. Si el HISTORIAL dice "(sin preguntas
+4. El HISTORIAL de abajo menciona un síntoma o malestar personal en un
+   turno ANTERIOR (no en la pregunta actual — ese caso ya se bloquea antes,
+   en la guarda de entrada), Y la ficha citada en el texto a evaluar tiene
+   una INDICACIÓN que coincide razonablemente con ese síntoma (ej. el
+   historial dice "me duele la cabeza" y el texto cita una ficha cuya
+   indicación es "dolor de cabeza" o similar). Si el medicamento que
+   aparece en el texto NO tiene relación real con el síntoma mencionado
+   antes (ej. el síntoma es "guata" y el medicamento citado es para
+   "depresión"), el criterio 4 es FALSO — no basta con que exista CUALQUIER
+   medicamento en la respuesta, tiene que haber una coincidencia real de
+   indicación con el síntoma previo. Si el HISTORIAL dice "(sin preguntas
    anteriores)" o no contiene ninguna mención de síntoma, el criterio 4 es
    FALSO siempre, sin excepción. Para este criterio, cita textualmente en
-   "cita_historial" la palabra o frase del HISTORIAL que menciona el síntoma
-   (no una indicación de ficha).
+   "cita_historial" la palabra o frase del HISTORIAL que menciona el síntoma.
 
 Historial de preguntas anteriores en esta conversación (puede estar vacío):
 {historial}
@@ -252,7 +248,13 @@ def evaluar_salida(
     (y a lo que _criterio4_verificado compara), sin mezclarla con el
     historial de turnos previos."""
     historial_normalizado = historial or "(sin preguntas anteriores)"
-    contexto_para_verificar = f"{historial_normalizado}\n- {pregunta_actual}" if pregunta_actual else historial_normalizado
+    # pregunta_actual ya no se mezcla en la verificación del criterio 4:
+    # el caso "síntoma + medicamento en el mismo mensaje" ahora lo bloquea
+    # gate_entrada de forma determinística (ver _PROMPT_ENTRADA), así que
+    # gate_salida solo necesita mirar turnos ANTERIORES reales, con
+    # coincidencia de indicación — evita que cualquier medicamento quede
+    # bloqueado el resto de la conversación tras mencionar un síntoma.
+    contexto_para_verificar = historial_normalizado
     texto = invocar_con_fallback(
         _PROMPT_SALIDA.format(respuesta=respuesta, historial=historial_normalizado, pregunta_actual=pregunta_actual or "(no informada)"),
         config=config,
