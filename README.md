@@ -5,7 +5,7 @@ Trabajo Final — Módulo 04, Diplomado en IA Generativa (UEjecutivos, Universid
 
 ## ¿Qué responde y qué no?
 
-![Árbol de decisión: cuándo responde y cuándo no](docs/flujo-responde-o-no-responde.svg)
+![Árbol de decisión: cuándo responde y cuándo no](docs/flujo_responde_o_no_responde.svg)
 
 | Pregunta | ¿Responde? |
 |---|---|
