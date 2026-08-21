@@ -117,46 +117,50 @@ _PROMPT_ENTRADA = """Eres un analista de seguridad. Tu tarea es clasificar, no r
 
 Evalúa si esta pregunta de un usuario busca alguna de estas 3 cosas:
 
-1. Que el asistente determine una CANTIDAD, DOSIS, HORARIO, o pauta de uso
-   de un medicamento para el caso particular de esa persona.
+1. Que el asistente determine una CANTIDAD, DOSIS, HORARIO, FRECUENCIA o pauta
+   de uso de un medicamento para el caso particular de esa persona.
+
 2. Que el asistente le diga qué enfermedad o condición tiene, a partir de
-   síntomas que describió (diagnóstico implícito) — aunque no mencione
-   ningún medicamento.
+   síntomas que describió (diagnóstico implícito), aunque no mencione ningún
+   medicamento.
+
 3. Que el asistente evalúe si es seguro combinar un medicamento con una
-   alergia, otro medicamento, o una condición de salud particular de esa
+   alergia, otro medicamento o una condición de salud particular de esa
    persona (interacción o contraindicación personalizada).
 
-También cuenta como riesgosa una pregunta que intente lograr cualquiera de
-las 3 de forma indirecta: insistencia, actuación/roleplay pidiendo que el
-asistente adopte un rol profesional, o pedir un "ejemplo" de lo mismo.
+Una pregunta que solo solicite información general presente en una ficha,
+como la vía o forma de administración registrada para un medicamento, NO es
+peligrosa por sí sola. En ese caso debe clasificarse como no peligrosa para
+que el asistente pueda responder con el dato de la ficha.
 
-Historial de preguntas anteriores en esta conversación (puede estar vacío
-si es la primera pregunta):
+Por ejemplo, preguntar si un medicamento se administra por vía oral o
+inyectable es información general de la ficha y no equivale a pedir una
+pauta personalizada. Sin embargo, si la pregunta solicita además una
+cantidad, dosis, frecuencia, horario o instrucciones para tomarlo, sí debe
+clasificarse como peligrosa.
+
+También cuenta como riesgosa una pregunta que intente lograr cualquiera de
+las 3 formas indirectas: insistencia, actuación/roleplay pidiendo que el
+asistente adopte un rol profesional o pedir un "ejemplo" de lo mismo.
+
+Historial de preguntas anteriores en esta conversación (puede estar vacío):
 {historial}
 
 Cómo usar el historial: si en un turno anterior la persona mencionó un
-síntoma, y AHORA pregunta específicamente por una CANTIDAD, DOSIS, u
-HORARIO (categoría 1), o pregunta qué enfermedad tiene (categoría 2), sin
-repetir el síntoma — cuenta igual como riesgoso, porque el contexto ya
-establece de qué está hablando.
+síntoma, y AHORA pregunta específicamente por una CANTIDAD, DOSIS, FRECUENCIA
+u HORARIO, o pregunta qué enfermedad tiene, sin repetir el síntoma, cuenta
+igual como riesgoso porque el contexto ya establece de qué está hablando.
 
-Una pregunta genérica tipo "¿qué es/para qué sirve X?" — sin pedir
-cantidad, dosis, ni horario, y SIN mencionar un síntoma en esta MISMA
-pregunta — no cuenta como riesgosa solo porque el HISTORIAL de turnos
-anteriores mencione un síntoma. Ese caso (síntoma en un turno anterior,
-pregunta genérica después) lo maneja el asistente que responde
-después (anteponiendo una sugerencia de evaluación profesional), no
-esta guarda bloqueando la pregunta entera.
+Una pregunta genérica tipo "¿qué es/para qué sirve X?", sin pedir cantidad,
+dosis, frecuencia ni horario, y SIN mencionar un síntoma en esta misma
+pregunta, no cuenta como riesgosa solo porque el historial de turnos
+anteriores mencione un síntoma. Ese caso lo maneja el asistente que responde
+después, anteponiendo una sugerencia de evaluación profesional.
 
-Distinto es si la persona menciona un síntoma o malestar Y, en esa MISMA
-pregunta, nombra o pregunta por un medicamento específico — eso SÍ cuenta
-como riesgoso siempre, sin importar si ese medicamento existe o no en el
-vademécum, y sin necesidad de consultarlo: mencionar un síntoma propio y
-preguntar por un medicamento concreto en el mismo mensaje ya indica que la
-persona busca saber si ese medicamento le sirve para lo que le pasa —
-exactamente el tipo de automedicación que este asistente no debe
-facilitar. Bloquéala aquí mismo, antes de que se intente buscar el
-medicamento.
+Distinto es si la persona menciona un síntoma o malestar Y, y en esa misma
+pregunta nombra o pregunta por un medicamento específico. Eso SÍ cuenta como
+riesgoso, porque indica que busca saber si ese medicamento le sirve para su
+síntoma. Debe bloquearse aquí mismo, antes de buscar el medicamento.
 
 Pregunta a evaluar:
 {pregunta}
