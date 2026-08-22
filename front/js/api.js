@@ -44,21 +44,39 @@ window.App.api = (function () {
 
   /**
    * Envía una pregunta al endpoint /chat, autenticada con el token de
-   * sesión (header Authorization), no con un user_id en el body.
-   * El servidor YA NO renueva el token en cada respuesta — la sesión
-   * dura 45 min fijos desde que se creó (ver auth.py). Por eso la
-   * respuesta ya no trae token, solo { respuesta, user_id }.
+   * sesión (header Authorization). El servidor YA NO renueva el token
+   * en cada respuesta — la sesión dura 45 min fijos desde que se creó
+   * (ver auth.py). Por eso la respuesta ya no trae token, solo
+   * { respuesta, user_id }.
+   *
+   * requestId (agosto 2026): UUID generado por quien llama (ver main.js,
+   * crypto.randomUUID()), uno distinto por cada pregunta — no por sesión.
+   * Se manda en el body como "request_id". El backend lo usa para dos
+   * cosas: (1) idempotencia — si esta misma pregunta se reintenta con el
+   * MISMO requestId (ej. porque este fetch tira timeout y el código de
+   * arriba decide reintentar), el backend devuelve la respuesta ya
+   * calculada en vez de reprocesar; (2) trazabilidad — ese mismo ID queda
+   * en los logs del servidor y en la traza de LangSmith/Langfuse, así se
+   * puede encontrar esta pregunta puntual en ambos lados. Parámetro
+   * opcional a propósito: si no se pasa, /chat sigue funcionando exactamente
+   * igual que antes de este cambio (sin cache de idempotencia para esa
+   * pregunta).
    * Lanza un error tipado (con .status y .detail) para que quien llama
    * decida cómo mostrarlo, sin acoplar esta función a la UI.
    */
-  async function sendMessage(apiUrl, token, pregunta) {
+  async function sendMessage(apiUrl, token, pregunta, requestId) {
+    const body = { pregunta };
+    if (requestId) {
+      body.request_id = requestId;
+    }
+
     const response = await fetch(normalizeUrl(apiUrl) + "/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + token,
       },
-      body: JSON.stringify({ pregunta }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

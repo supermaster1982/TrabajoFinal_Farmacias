@@ -284,11 +284,13 @@ def _colapsar_texto_duplicado(texto: str) -> str:
 
     return texto
 
-def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
+def _nodo_gate_entrada(estado: EstadoConversacion, config: dict | None = None) -> EstadoConversacion:
     historial = _obtener_preguntas_previas(estado["user_id"])
+    request_id = (config or {}).get("metadata", {}).get("request_id")
+    sufijo = f" [request_id={request_id}]" if request_id else ""
     try:
         evaluacion = evaluar_entrada(estado["pregunta"], historial=historial, config=_lf_config())
-        print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
+        print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}{sufijo}")
         return {
             "bloqueado_en_entrada": evaluacion.es_peligroso,
             "razon_entrada": evaluacion.razon,
@@ -349,15 +351,25 @@ def _agregar_citas(respuesta: str, citas: list[str]) -> str:
         return respuesta
     return respuesta + "\n\n" + "\n".join(citas)
 
-def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
-    config = {
+def _nodo_agente(estado: EstadoConversacion, config: dict | None = None) -> EstadoConversacion:
+    # config acá es el que LangGraph inyecta desde el invoke() de nivel
+    # superior (responder(), en este mismo archivo) — trae la metadata de
+    # request_id si vino. Se combina con la config propia del sub-agente
+    # (thread_id, recursion_limit, callbacks de Langfuse) para que el
+    # sub-run del react_agent TAMBIÉN quede taggeado con el mismo
+    # request_id, no solo el nodo raíz del grafo.
+    metadata_heredada = (config or {}).get("metadata", {})
+    tags_heredados = (config or {}).get("tags", [])
+    config_agente = {
         "configurable": {"thread_id": estado["user_id"]},
         "recursion_limit": 12,  # freno contra gasto de tokens sin control (una pregunta normal usa 2-4 pasos)
+        "metadata": metadata_heredada,
+        "tags": tags_heredados,
         **_lf_config(),
     }
     try:
         resultado = _react_agent.invoke(
-            {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config
+            {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config_agente
         )
     except GraphRecursionError:
         # El agente se pasó del límite de pasos — algo anormal (bucle, o un
@@ -481,16 +493,28 @@ class GuardaNoDisponibleError(Exception):
     petición hubiera sido evaluada y rechazada normalmente."""
 
 
-def responder(user_id: str, pregunta: str) -> str:
+def responder(user_id: str, pregunta: str, request_id: str | None = None) -> str:
     """Punto de entrada usado por la API (main.py). Corre el grafo completo:
     guarda de entrada → agente → guarda de salida.
+
+    request_id (agosto 2026): opcional, viene de main.py (ver docstring de
+    ese módulo). Se agrega como metadata y tag al invoke() del grafo — esto
+    hace que la traza de nivel superior en LangSmith quede indexada por ese
+    ID exacto, buscable directamente en la UI de LangSmith (filtro por
+    metadata) sin tener que adivinar cuál de varias preguntas del mismo
+    user_id corresponde a este turno puntual. Complementa (no reemplaza) el
+    log de consola, que también incluye este mismo request_id.
 
     El flush() se hace UNA vez acá, después de que el grafo completo terminó
     — no dentro de cada nodo — para que cubra también los casos donde el
     grafo termina temprano (bloqueado en gate_entrada, sin llegar al nodo
     'agente'). Si el flush viviera solo en el nodo del agente, esos casos
     bloqueados nunca enviarían su traza a Langfuse."""
-    resultado = _app.invoke({"user_id": user_id, "pregunta": pregunta})
+    config = {}
+    if request_id:
+        config = {"metadata": {"request_id": request_id}, "tags": [f"request_id:{request_id}"]}
+
+    resultado = _app.invoke({"user_id": user_id, "pregunta": pregunta}, config=config)
 
     if _LANGFUSE_ACTIVO and _langfuse_client:
         _langfuse_client.flush()

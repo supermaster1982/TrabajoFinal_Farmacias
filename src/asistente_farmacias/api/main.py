@@ -15,18 +15,45 @@ POST /session es opcional pero recomendado: genera un user_id amigable
 (ej. "Valentina482", vía Faker) + un token JWT válido por 45 min FIJOS,
 sin renovación — al vencer, /chat responde 401 y hay que pedir una sesión
 nueva (memoria en blanco). Ver docs/por-que-user-id.md.
+
+--- request_id: idempotencia + trazabilidad (agosto 2026) ---
+ChatRequest acepta un `request_id` opcional (UUID), generado por el front
+una vez por pregunta. Sirve para dos cosas, no relacionadas con la memoria
+de conversación (esa sigue viviendo en el checkpointer de graph.py):
+
+1. Idempotencia: si el front reintenta la MISMA pregunta por un timeout de
+   red (el usuario no volvió a escribir nada, fue un reintento automático),
+   el mismo request_id llega dos veces. En vez de invocar el grafo de
+   nuevo (gastando tokens y, peor, arriesgando una respuesta distinta la
+   segunda vez), se devuelve la respuesta ya calculada la primera vez.
+
+2. Trazabilidad end-to-end: el mismo request_id se manda como metadata al
+   grafo (ver graph.py), que lo agrega a la traza de LangSmith/Langfuse —
+   así una pregunta puntual se puede buscar por ese ID exacto tanto en los
+   logs de consola como en la traza de observabilidad, sin tener que
+   adivinar cuál de varias preguntas del mismo user_id fue.
+
+La clave del cache de idempotencia es (user_id, request_id), NO solo
+request_id — así una persona nunca puede recibir por accidente (o a
+propósito) la respuesta cacheada de otra persona, aunque coincida el UUID
+(prácticamente imposible, pero la separación es gratis y cierra esa
+puerta). Cache en memoria (mismo criterio que el rate limiter de más
+abajo): se pierde si el servidor se reinicia, aceptable porque solo cubre
+reintentos de red de corto plazo (TTL de 5 min), no algo que necesite
+sobrevivir un reinicio como sí lo necesita el historial de conversación.
 """
 
 import logging
 import os
+import time
+from collections import defaultdict
 from datetime import datetime, timezone
+from uuid import UUID
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import time
-from collections import defaultdict
 
 
 load_dotenv(override=True)
@@ -53,6 +80,17 @@ class ChatRequest(BaseModel):
             "Obligatorio si NO mandas Authorization — permite probar la "
             "API directo con el contrato {user_id, pregunta}, sin pasar "
             "por /session primero."
+        ),
+    )
+    request_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Opcional. ID único por pregunta (no por sesión) — el front "
+            "genera uno nuevo cada vez que se envía una pregunta. Si la "
+            "misma pregunta se reintenta con el MISMO request_id (ej. "
+            "timeout de red), se devuelve la respuesta ya calculada en "
+            "vez de reprocesar. También sirve para encontrar esta "
+            "pregunta puntual en las trazas de LangSmith/Langfuse."
         ),
     )
 
@@ -114,6 +152,29 @@ def _verificar_rate_limit(client_ip: str) -> bool:
     timestamps.append(ahora)
     return True
 
+
+# --- Idempotencia: cache en memoria, escopeado por (user_id, request_id) ----
+# Ver docstring del módulo para el razonamiento completo. TTL corto (5 min
+# por defecto): alcanza de sobra para reintentos de red reales, y evita que
+# el dict crezca sin límite en una sesión larga.
+IDEMPOTENCY_TTL_SECONDS = int(os.getenv("IDEMPOTENCY_TTL_SECONDS", "300"))
+_idempotency_cache: dict[tuple[str, str], dict] = {}
+
+
+def _limpiar_cache_idempotencia_vencido() -> None:
+    """Limpieza perezosa (se ejecuta en cada pregunta con request_id, no
+    con un thread aparte) — mismo criterio que _verificar_rate_limit()
+    más arriba: suficiente para el volumen de este proyecto, sin agregar
+    infraestructura de limpieza en background."""
+    ahora = time.time()
+    vencidos = [
+        clave for clave, entrada in _idempotency_cache.items()
+        if ahora - entrada["timestamp"] > IDEMPOTENCY_TTL_SECONDS
+    ]
+    for clave in vencidos:
+        del _idempotency_cache[clave]
+
+
 @app.get("/")
 def health():
     """Liveness check."""
@@ -174,10 +235,26 @@ async def chat(
             detail="Falta el user_id: manda 'user_id' en el body, o el header Authorization con un token de POST /session.",
         )
 
+    # --- Idempotencia: ¿ya procesamos esta pregunta puntual? ----------------
+    # Escopeado por (user_id, request_id) — nunca solo request_id, para que
+    # nadie pueda recibir por accidente la respuesta cacheada de otra
+    # persona. Si no viene request_id (cliente viejo, o alguien probando la
+    # API a mano), se procesa siempre sin cachear — comportamiento idéntico
+    # al de antes de este cambio.
+    clave_idempotencia = (user_id, str(request.request_id)) if request.request_id else None
+    if clave_idempotencia:
+        _limpiar_cache_idempotencia_vencido()
+        entrada_cacheada = _idempotency_cache.get(clave_idempotencia)
+        if entrada_cacheada:
+            print(f"♻️  request_id {request.request_id} repetido para {user_id} — devolviendo respuesta cacheada, sin reprocesar")
+            return ChatResponse(**entrada_cacheada["response"])
+
     inicio = datetime.now(timezone.utc)
-    print(f"🕐 [{inicio.isoformat()}] Pregunta de {user_id}: {request.pregunta}")
+    request_id_str = str(request.request_id) if request.request_id else None
+    sufijo_log = f" [request_id={request_id_str}]" if request_id_str else ""
+    print(f"🕐 [{inicio.isoformat()}] Pregunta de {user_id}: {request.pregunta}{sufijo_log}")
     try:
-        respuesta = responder(user_id, request.pregunta)
+        respuesta = responder(user_id, request.pregunta, request_id=request_id_str)
     except GuardaNoDisponibleError as e:
         logger.warning(f"Guarda no disponible: {e}")
         raise HTTPException(status_code=503, detail=str(e))
@@ -185,11 +262,24 @@ async def chat(
         logger.exception("Fallo al responder la pregunta")
         raise HTTPException(status_code=502, detail="Fallo interno; revisa los logs del servidor.")
     fin = datetime.now(timezone.utc)
-    print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s)")
+    print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s){sufijo_log}")
 
     response.headers["X-Timestamp-UTC"] = fin.isoformat()
+    if request_id_str:
+        response.headers["X-Request-ID"] = request_id_str
 
-    return ChatResponse(user_id=user_id,respuesta=respuesta)
+    respuesta_final = ChatResponse(user_id=user_id, respuesta=respuesta)
+
+    # Guardar en cache DESPUÉS de responder con éxito — si falló (excepción
+    # de arriba), no se cachea nada, así un reintento real del front vuelve
+    # a intentar de cero en vez de quedar pegado a un error viejo.
+    if clave_idempotencia:
+        _idempotency_cache[clave_idempotencia] = {
+            "timestamp": time.time(),
+            "response": respuesta_final.model_dump(),
+        }
+
+    return respuesta_final
 
 
 if __name__ == "__main__":

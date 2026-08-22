@@ -26,6 +26,25 @@
   }
   dom.setUserId(cachedUserId);
 
+  // Genera un ID único por PREGUNTA (no por sesión) — ver docstring de
+  // sendMessage() en api.js para qué hace el backend con esto
+  // (idempotencia + trazabilidad). crypto.randomUUID() es nativo del
+  // navegador, sin dependencias nuevas; disponible en todos los
+  // navegadores modernos servidos por HTTPS (o localhost).
+  function generarRequestId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    // Respaldo simple por si algún navegador viejo no tiene randomUUID —
+    // no necesita ser criptográficamente perfecto, solo único para
+    // efectos de idempotencia/trazabilidad de esta pregunta puntual.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   async function ensureSession() {
     if (cachedToken && cachedUserId) return cachedToken;
     const data = await api.createSession(backendUrlInput.value);
@@ -79,9 +98,16 @@
     dom.addTypingIndicator();
     dom.setSending(true);
 
+    // Un request_id nuevo por cada pregunta — se genera UNA vez acá,
+    // antes del intento. Si más adelante se agrega lógica de reintento
+    // automático ante timeout, debe reusarse este MISMO requestId en el
+    // reintento (no generar uno nuevo) para que la idempotencia del
+    // backend funcione — es la razón de ser de este ID.
+    const requestId = generarRequestId();
+
     try {
       const token = await ensureSession();
-      const data = await api.sendMessage(backendUrlInput.value, token, pregunta);
+      const data = await api.sendMessage(backendUrlInput.value, token, pregunta, requestId);
       // Ya no hay token que renovar (dura 45 min fijos). Si el user_id
       // que confirma el backend difiere del que teníamos cacheado,
       // reflejamos el real — no debería pasar salvo bug de servidor.
