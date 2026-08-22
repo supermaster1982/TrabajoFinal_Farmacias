@@ -60,11 +60,11 @@ GET  /historial + Authorization: Bearer <token>
 **Decisión de diseño — separación en capas:** canal (API), orquestación (StateGraph), herramientas (4 tools, una de ellas por protocolo MCP), estado (checkpointer persistente por `user_id` + registro propio de preguntas para el historial de las guardas) y control transversal (guardas de entrada/salida) están separados en módulos distintos del código. Esto permite auditar y testear cada capa por separado, y — como se vio en la práctica con el MCP y con la migración de checkpointer — reemplazar la forma de acceder a una fuente de datos o de persistir el estado sin tocar el resto del sistema.
 
 Vista visual del flujo de decisión (front → API → guardrails → agente → respuesta):
- 
+
 ![Flujo principal de decisión](docs/flujo_principal_asistente_farmacias.svg)
- 
+
 Detalle de las 4 tools del agente y la separación en dos servicios del vademécum chileno (servidor MCP como proceso aparte, sección 3.12):
- 
+
 ![Detalle de tools y servidor MCP](docs/detalle_tools_y_servidor_mcp.svg)
 
 ---
@@ -274,6 +274,7 @@ Proxy propio en Cloud Run Santiago esquiva el bloqueo de Cloudflare a IP de data
 - **Credenciales:** `.env` excluido de Git vía `.gitignore` — incluye también `data/vademecum_chile/` (el JSON del profesor no se redistribuye en el repo público).
 - **Observabilidad:** LangSmith activo; Langfuse implementado pero no configurado.
 - **Contexto legal chileno:** Ley 21.719 entra en vigor el 1 de diciembre de 2026.
+- **Política de retención de datos (definida):** las trazas técnicas (LangSmith/Langfuse) se conservan sin fecha de vencimiento, porque son la base de la mejora continua del sistema (recalibración de umbrales, comparación de versiones, evals históricos) — no contienen datos personales identificables que requieran un plazo de anonimización, ya que el `user_id` es un nombre generado por Faker, sin vínculo a una identidad real. Detalle completo en `docs/proceso-revision-trazas.md`.
 
 ### 6.1 Autenticación: sesión anónima firmada (RESUELTO)
 
@@ -306,7 +307,7 @@ Protocolo documentado en `docs/proceso-revision-trazas.md`.
 | 3 | El propio prompt del guardrail dispara la moderación del proveedor | Media | Alto | Migración a texto plano + parseo manual | Backend | ✅ |
 | 4 | Dato de MINSAL desactualizado o inexistente para una comuna | Media | Alto | Fecha visible + fallback al directorio completo | Backend | ✅ |
 | 5 | API de MINSAL no responde (timeout, caída, bloqueo de Cloudflare) | Media-Alta | Alto | Proxy en Cloud Run Santiago; fallback proxy → snapshot → mensaje digno | Backend | ✅ |
-| 6 | Preguntas de salud quedan registradas sin política de retención clara | Media | Medio | Proceso de revisión documentado; pendiente política formal | Backend/Producto | ⏳ parcial |
+| 6 | Preguntas de salud quedan registradas sin política de retención clara | Media | Medio | Política de retención definida: trazas técnicas sin fecha de vencimiento (mejora continua), sin datos personales identificables desde el diseño (`user_id` es un nombre Faker, no vinculado a identidad real) — detalle completo en `docs/proceso-revision-trazas.md` | Backend | ✅ |
 | 7 | Delay de ingesta de Langfuse afecta la demo en vivo | Alta | Bajo | LangSmith como observabilidad principal | Backend | ✅ |
 | 8 | El re-rank del RAG agrega latencia sin garantía de mejora | Media | Bajo-Medio | Mini-eval cuantitativo; desactivado por defecto | Backend | ✅ |
 | 9 | Credenciales expuestas accidentalmente en el repositorio | Baja | Crítico | `.gitignore` + verificación manual | Todo el equipo | ✅ |
@@ -328,7 +329,7 @@ Protocolo documentado en `docs/proceso-revision-trazas.md`.
 | 25 | Reintento de red del cliente duplica el procesamiento de una misma pregunta (doble gasto de tokens, riesgo de dos respuestas distintas para la misma pregunta) | Media (cualquier fetch puede reintentarse) | Bajo-Medio (costo y consistencia, no seguridad) | Idempotencia por `request_id`, escopeada por `(user_id, request_id)`, validada con un reintento real simulado (sección 3.14) | Backend | ✅ |
 | 26 | Variable de entorno obligatoria nueva (`DATABASE_URL`) ausente en el entorno de producción rompe el arranque del backend | Media (depende de coordinación entre integrantes del equipo) | Crítico (caída total del servicio) | El sistema falla explícito y rápido al arrancar si falta (mismo patrón que `GEN_MODEL`), evitando un fallo silencioso más difícil de diagnosticar. Coordinación con el equipo en curso para confirmar la variable en Render antes del redeploy | Backend | ⏳ en curso |
 
-**24 de 26 riesgos con el aspecto de seguridad/alcance/cumplimiento resuelto; 2 en curso o parciales (retención de datos, sincronización de variable de entorno en producción).**
+**25 de 26 riesgos con el aspecto de seguridad/alcance/cumplimiento resuelto; 1 en curso (sincronización de variable de entorno en producción).**
 
 ---
 
@@ -344,7 +345,6 @@ Protocolo documentado en `docs/proceso-revision-trazas.md`.
 1. **Nombrar a los dueños reales en la matriz de riesgos** (sección 7) — bloqueante para el punto 5 de la rúbrica, pendiente de que cada integrante confirme su nombre.
 2. **Confirmar `DATABASE_URL` en el entorno de producción del backend (Render)** — urgente: sin esto, el próximo redeploy del backend en producción no arranca (riesgo #26).
 3. **Despliegue del servidor MCP en producción** — pendiente coordinar con el equipo; implica 2 servicios coordinados en Render en vez de 1, con orden de arranque y una variable de entorno nueva (`MCP_VADEMECUM_CHILE_URL`) apuntando a la URL pública real. En curso.
-4. **Política formal de retención/anonimización de trazas** — falta definir cuánto tiempo se conservan los datos, más allá del proceso de revisión ya documentado (`docs/proceso-revision-trazas.md`).
 
 ## Referencias adicionales
 

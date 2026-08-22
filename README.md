@@ -101,7 +101,7 @@ Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front"
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
 | Evaluación formal en LangSmith (22 preguntas, 6 métricas) + comparación factorial 3×3 de modelos | ✅ |
 | Front conversacional (`front/index.html`) — muestra el nombre de sesión, botón para generar uno nuevo | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
-| Informe de seguridad/privacidad/calidad + matriz de riesgos (26 ítems, 7 capas de seguridad completas) | ✅ |
+| Informe de seguridad/privacidad/calidad + matriz de riesgos (26 ítems, política de retención definida, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube (backend + front) | ✅ |
 | **Sincronizar `DATABASE_URL` en el entorno de producción del backend** | ⏳ urgente, en curso |
 | Despliegue del servidor MCP en producción | ⏳ en curso (coordinando con el equipo) |
@@ -425,7 +425,6 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 1. **Confirmar `DATABASE_URL` en el entorno de producción del backend (Render)** — urgente: el código ahora exige esta variable para arrancar; sin ella configurada, el próximo redeploy del backend en producción se cae.
 2. **Nombrar a los dueños reales en la matriz de riesgos** — la rúbrica exige nombre y apellido, no un rol genérico.
 3. Despliegue del servidor MCP en producción — implica coordinar 2 servicios en Render en vez de 1, con orden de arranque y la variable `MCP_VADEMECUM_CHILE_URL` apuntando a la URL pública real. En curso.
-4. Política formal de retención/anonimización de trazas — más allá del proceso de revisión ya documentado.
 
 ## Entregables de este trabajo
 
