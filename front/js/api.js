@@ -30,19 +30,24 @@ window.App.api = (function () {
 
   /**
    * Crea una sesión anónima nueva — sin login, sin datos personales.
-   * Devuelve { token: "..." }, que hay que guardar y reutilizar.
+   * Devuelve { user_id: "Valentina482", token: "..." }.
+   * El user_id es el nombre amigable que hay que MOSTRAR en la UI — es
+   * literalmente el valor que viaja en el contrato {user_id, pregunta}.
    */
   async function createSession(apiUrl) {
     const response = await fetch(normalizeUrl(apiUrl) + "/session", { method: "POST" });
     if (!response.ok) {
       throw new Error("No se pudo crear la sesión, status " + response.status);
     }
-    return response.json(); // { token: "..." }
+    return response.json(); // { user_id: "...", token: "..." }
   }
 
   /**
    * Envía una pregunta al endpoint /chat, autenticada con el token de
    * sesión (header Authorization), no con un user_id en el body.
+   * El servidor YA NO renueva el token en cada respuesta — la sesión
+   * dura 45 min fijos desde que se creó (ver auth.py). Por eso la
+   * respuesta ya no trae token, solo { respuesta, user_id }.
    * Lanza un error tipado (con .status y .detail) para que quien llama
    * decida cómo mostrarlo, sin acoplar esta función a la UI.
    */
@@ -68,7 +73,7 @@ window.App.api = (function () {
       throw error;
     }
 
-    return response.json(); // { respuesta: "...", token: "..." } — token RENOVADO
+    return response.json(); // { respuesta: "...", user_id: "..." } — sin token
   }
 
   return {

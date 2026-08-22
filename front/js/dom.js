@@ -15,6 +15,7 @@ window.App.dom = (function () {
   const mcpStatusText = document.getElementById("mcpStatusText");
 
   const sendButton = document.getElementById("sendButton");
+  const userIdDisplay = document.getElementById("userIdDisplay");
 
   function clearEmptyState() {
     if (emptyState && emptyState.isConnected) {
@@ -73,6 +74,22 @@ window.App.dom = (function () {
     sendButton.disabled = isSending;
   }
 
+  // Muestra el user_id (nombre amigable, ej. "Valentina482") en la UI.
+  // "—" cuando aún no hay sesión creada.
+  function setUserId(userId) {
+    if (userIdDisplay) {
+      userIdDisplay.textContent = userId || "—";
+    }
+  }
+
+  // Vuelve el chat a su estado inicial (usado al generar una sesión
+  // nueva: nuevo user_id = memoria nueva en el backend, así que el
+  // historial visible también debe empezar de cero).
+  function resetChat() {
+    chatLog.innerHTML = "";
+    chatLog.appendChild(emptyState);
+  }
+
   return {
     addMessage,
     addTypingIndicator,
@@ -80,5 +97,7 @@ window.App.dom = (function () {
     setConnectionStatus,
     setMcpStatus,
     setSending,
+    setUserId,
+    resetChat,
   };
 })();
