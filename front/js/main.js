@@ -5,16 +5,18 @@
 
   const form = document.getElementById("chatForm");
   const textarea = document.getElementById("pregunta");
-  const apiUrlInput = document.getElementById("apiUrl");
+  const backendUrlInput = document.getElementById("backendUrl");
+  const mcpUrlInput = document.getElementById("mcpUrl");
 
   // El token de sesión (no un user_id) se guarda acá — se crea la primera
   // vez que hace falta (ver ensureToken) y se reemplaza en cada respuesta
   // exitosa (el servidor lo renueva en cada pregunta, ver saveToken).
   let cachedToken = localStorage.getItem(config.SESSION_TOKEN_STORAGE_KEY);
+  let mcpAvailable = false;
 
   async function ensureToken() {
     if (cachedToken) return cachedToken;
-    const data = await api.createSession(apiUrlInput.value);
+    const data = await api.createSession(backendUrlInput.value);
     cachedToken = data.token;
     localStorage.setItem(config.SESSION_TOKEN_STORAGE_KEY, cachedToken);
     return cachedToken;
@@ -32,21 +34,37 @@
 
   async function refreshConnectionStatus() {
     try {
-      await api.checkHealth(apiUrlInput.value);
-      dom.setConnectionStatus(true, "Conectado");
+      await api.checkHealth(backendUrlInput.value);
+      dom.setConnectionStatus(true, "Backend conectado");
     } catch (_error) {
-      dom.setConnectionStatus(false, "Sin conexión — revisa la URL o que el servidor esté corriendo");
+      dom.setConnectionStatus(false, "Backend sin conexión");
+    }
+
+    try {
+      await api.checkMcpHealth(mcpUrlInput.value);
+      mcpAvailable = true;
+      dom.setMcpStatus(true, "MCP disponible");
+    } catch (_error) {
+      mcpAvailable = false;
+      dom.setMcpStatus(false, "MCP no disponible");
     }
   }
 
   async function handleAsk(pregunta) {
+    if (!mcpAvailable) {
+      dom.addMessage(
+        "error",
+        `El MCP no está disponible en ${mcpUrlInput.value}. No se puede procesar la consulta.`
+      );
+      return;
+    }
     dom.addMessage("user", pregunta);
     dom.addTypingIndicator();
     dom.setSending(true);
 
     try {
       const token = await ensureToken();
-      const data = await api.sendMessage(apiUrlInput.value, token, pregunta);
+      const data = await api.sendMessage(backendUrlInput.value, token, pregunta);
       saveToken(data.token); // token renovado — reemplaza al anterior
       dom.removeTypingIndicator();
       const wasBlocked = (data.respuesta || "").includes(config.GUARDRAIL_MARKER);
@@ -65,14 +83,14 @@
         dom.addMessage(
           "error",
           "⚠️ El control de seguridad no está disponible en este momento (falla del proveedor del modelo). " +
-            "Por seguridad, no se procesó tu pregunta. Intenta de nuevo en un momento."
+          "Por seguridad, no se procesó tu pregunta. Intenta de nuevo en un momento."
         );
       } else if (error.status) {
         dom.addMessage("error", `El servidor respondió con un error (${error.status}). Revisa los logs de la terminal.`);
       } else {
         dom.addMessage(
           "error",
-          `No se pudo conectar con ${apiUrlInput.value}. ¿Está corriendo el servidor? ¿La URL de arriba es correcta?`
+          `No se pudo conectar con ${backendUrlInput.value}. ¿Está corriendo el servidor? ¿La URL de arriba es correcta?`
         );
       }
     } finally {
@@ -109,7 +127,8 @@
     chip.addEventListener("click", () => handleAsk(chip.dataset.q));
   });
 
-  apiUrlInput.addEventListener("change", refreshConnectionStatus);
+  backendUrlInput.addEventListener("change", refreshConnectionStatus);
+  mcpUrlInput.addEventListener("change", refreshConnectionStatus);
 
   // --- Arranque ---
   refreshConnectionStatus();

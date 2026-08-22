@@ -5,11 +5,26 @@ window.App.api = (function () {
     return url.replace(/\/$/, "");
   }
 
-  async function checkHealth(apiUrl) {
-    const response = await fetch(normalizeUrl(apiUrl) + "/", { method: "GET" });
+  async function checkHealth(backendUrl) {
+    const response = await fetch(normalizeUrl(backendUrl) + "/", { method: "GET" });
     if (!response.ok) {
       throw new Error("health check devolvió status " + response.status);
     }
+    return response.json();
+  }
+
+  async function checkMcpHealth(mcpUrl) {
+    const response = await fetch(
+      normalizeUrl(mcpUrl) + "/health",
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "health check del MCP devolvió status " + response.status
+      );
+    }
+
     return response.json();
   }
 
@@ -56,5 +71,10 @@ window.App.api = (function () {
     return response.json(); // { respuesta: "...", token: "..." } — token RENOVADO
   }
 
-  return { checkHealth, createSession, sendMessage };
+  return {
+    checkHealth,
+    checkMcpHealth,
+    createSession,
+    sendMessage,
+  };
 })();

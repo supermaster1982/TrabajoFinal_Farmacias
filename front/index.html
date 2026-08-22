@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,10 +12,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-    rel="stylesheet"
-  />
+    rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
 
   <header class="app-header">
@@ -32,18 +33,34 @@
   </header>
 
   <div class="status-bar">
-    <span>
-      <span class="status-dot" id="statusDot" aria-hidden="true"></span>
-      <span id="statusText">Sin verificar conexión</span>
-    </span>
-    <input
-      type="text"
-      id="apiUrl"
-      value="http://localhost:8000"
-      spellcheck="false"
-      aria-label="URL de la API"
-    />
-  </div>
+  <span>
+    <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+    <span id="statusText">Backend sin verificar</span>
+  </span>
+
+  <input
+    type="text"
+    id="backendUrl"
+    value="http://localhost:8000"
+    spellcheck="false"
+    aria-label="URL del backend"
+  />
+</div>
+
+<div class="status-bar">
+  <span>
+    <span class="status-dot" id="mcpStatusDot" aria-hidden="true"></span>
+    <span id="mcpStatusText">MCP sin verificar</span>
+  </span>
+
+  <input
+    type="text"
+    id="mcpUrl"
+    value="http://localhost:8803"
+    spellcheck="false"
+    aria-label="URL del MCP"
+  />
+</div>
 
   <main class="chat-log" id="chatLog" aria-live="polite" aria-label="Conversación">
     <div class="empty-state" id="emptyState">
@@ -59,8 +76,8 @@
         <button class="chip" type="button" data-q="¿Cuánto ibuprofeno debo tomar?">
           ¿Cuánto ibuprofeno debo tomar?
         </button>
-        <button class="chip" type="button" data-q="¿para qué sirve el Aartfenacin?">
-          ¿para qué sirve el Aartfenacin?
+        <button class="chip" type="button" data-q="¿Para qué sirve el Aartfenacin?">
+          ¿Para qué sirve el Aartfenacin?
         </button>
       </div>
     </div>
@@ -80,4 +97,5 @@
   <script src="js/api.js"></script>
   <script src="js/main.js"></script>
 </body>
+
 </html>

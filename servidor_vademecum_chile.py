@@ -30,10 +30,16 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from dotenv import load_dotenv
 
 load_dotenv()
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5500",
+)
 
 from mcp.server.fastmcp import FastMCP
 
 from asistente_farmacias.tools.rag_subgrafo_chile import invocar_subgrafo_chile
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 mcp = FastMCP(
     "VademecumChile",
@@ -46,6 +52,19 @@ mcp = FastMCP(
     port=int(os.environ.get("MCP_PORT_VADEMECUM_CHILE", "8803")),
 )
 
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> JSONResponse:
+    return JSONResponse(
+        {
+            "status": "ok",
+            "service": "vademecum_chile",
+        },
+        headers={
+            "Access-Control-Allow-Origin": CORS_ALLOWED_ORIGINS,
+        },
+    )
+
+
 
 @mcp.tool(
     title="Buscar ficha de medicamento (Chile)",
@@ -57,6 +76,7 @@ mcp = FastMCP(
         "la primera."
     ),
 )
+
 def buscar_ficha_medicamento_chile(medicamento: str) -> str:
     """Misma firma y mismo formato de salida (incluida la cita
     '[Fuente: ... — ... · relevancia=...]') que la versión anterior de
@@ -82,6 +102,7 @@ def buscar_ficha_medicamento_chile(medicamento: str) -> str:
         )
     return "\n\n".join(bloques)
 
+app = mcp.streamable_http_app()
 
 if __name__ == "__main__":
     print("Iniciando servidor MCP VademecumChile…")
