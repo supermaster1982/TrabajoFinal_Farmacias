@@ -193,6 +193,8 @@ También hubo que resolver un conflicto de dependencias: `langchain-mcp-adapters
 
 ## Resiliencia ante caída o retiro de modelo
 
+**Qué hace cada uno:** `GEN_MODEL` es el modelo que usa el agente para decidir qué tool llamar y redactar la respuesta final — el que "genera" lo que ve la persona. `GUARD_MODEL` es el modelo que usan las dos guardas de seguridad (`gate_entrada` y `gate_salida`) para evaluar si la pregunta o la respuesta son seguras, además del filtro de relevancia del RAG — el que "vigila", no el que genera contenido.
+
 `GEN_MODEL` (agente) y `GUARD_MODEL` (guardas de entrada/salida + filtro de similitud de embeddings) son variables independientes, cada una con su propia cadena de fallback — evita el acoplamiento accidental que hubo en una etapa temprana del desarrollo, donde `resilience.py` leía `GEN_MODEL` por error y cambiar el modelo del agente cambiaba sin querer también el de las guardas.
 
 ![Cadena de fallback de GUARD_MODEL](docs/cadena-guard-model.svg)
@@ -390,9 +392,12 @@ Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Exp
 
 Las preguntas de prueba (22 en total: 9 informativas + 13 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` — para agregar una pregunta nueva, o cambiar el `tipo`/`esperado` de una existente, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente contra LangSmith (agrega lo nuevo y actualiza lo que cambió), sin duplicar lo que ya estaba subido.
 
-**Elección de `GEN_MODEL`/`GUARD_MODEL`**: para comparar modelos candidatos, corre `eval_langsmith.py` variando `GEN_MODEL` y/o `GUARD_MODEL` por variable de entorno, ej.:
+**Elección de `GEN_MODEL`/`GUARD_MODEL`**: para comparar modelos candidatos, cambia el valor de `GEN_MODEL` y/o `GUARD_MODEL` directamente en tu `.env` y vuelve a correr `eval_langsmith.py` — **no funciona pasarlas como variable de entorno antes del comando** (`GUARD_MODEL=gpt-5.6-luna poetry run ...`), porque `load_dotenv(override=True)` hace que el valor del `.env` siempre gane sobre lo que hayas puesto en la terminal, si esa variable ya está definida en el archivo:
 ```bash
-GUARD_MODEL=gpt-5.6-luna poetry run python eval_langsmith.py
+# Edita .env: GUARD_MODEL=gpt-5.4-mini
+poetry run python eval_langsmith.py
+# Edita .env: GUARD_MODEL=gpt-5.4-nano
+poetry run python eval_langsmith.py
 ```
 El nombre del experimento en LangSmith incluye el modelo evaluado, para poder comparar corridas. Detalle completo de la comparación factorial 3×3 ya realizada, en `docs/eleccion-modelos-gen-guard.md`.
 
