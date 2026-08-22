@@ -88,13 +88,15 @@
   }
 
   async function handleAsk(pregunta) {
-    if (!mcpAvailable) {
-      dom.addMessage(
-        "error",
-        `El MCP no está disponible en ${mcpUrlInput.value}. No se puede procesar la consulta.`
-      );
-      return;
-    }
+    // Antes: si mcpAvailable era false, se bloqueaba CUALQUIER pregunta acá
+    // mismo, sin ni siquiera intentar mandarla al backend — incluso
+    // preguntas que no necesitan el MCP para nada (ej. vademécum
+    // internacional, MINSAL). Esto anulaba la resiliencia real que el
+    // backend ya tiene: si una tool puntual falla, el agente sigue
+    // funcionando para todo lo demás (ver tool_rag_chile.py). El
+    // indicador "MCP disponible/no disponible" en la barra de estado
+    // sigue siendo útil como información visual, pero ya no bloquea nada
+    // acá — es el backend quien decide, tool por tool, qué puede resolver.
     dom.addMessage("user", pregunta);
     dom.addTypingIndicator();
     dom.setSending(true);
@@ -201,14 +203,13 @@
   // Botón "Ver historial": trae la conversación guardada en Postgres para
   // la sesión actual y la muestra en un panel superpuesto. Requiere una
   // sesión activa (token válido) — si no hay, se crea una primero.
-    if (verHistorialBtn) {
+  if (verHistorialBtn) {
     verHistorialBtn.addEventListener("click", async () => {
       try {
         const token = await ensureSession();
         const data = await api.fetchHistorial(backendUrlInput.value, token);
         dom.showHistorial(data.user_id, data.mensajes);
       } catch (error) {
-        console.error("Error al ver historial:", error); // <-- AGREGAR ESTA LÍNEA
         if (error.status === 401) {
           clearSession();
           dom.addMessage("error", "⚠️ Tu sesión expiró. Envía una pregunta para crear una sesión nueva.");
