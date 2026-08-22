@@ -141,6 +141,14 @@ Detalle del fallback entre las dos fuentes de vademécum (con los tiempos reales
 
 ![Flujo de fallback Kaggle → verificación LLM → vademécum chileno](docs/flujo_fallback_vademecum_kaggle_chile.svg)
 
+Vista visual del flujo de decisión (front → API → guardrails → agente → respuesta):
+
+![Flujo principal de decisión](docs/flujo_principal_asistente_farmacias.svg)
+
+Detalle de las 4 tools del agente y la separación en dos servicios del vademécum chileno:
+
+![Detalle de tools y servidor MCP](docs/detalle_tools_y_servidor_mcp.svg)
+
 ## Persistencia del historial (Postgres)
 
 El historial de conversación del agente se guarda en una base **Postgres real** (`langgraph-checkpoint-postgres`), no en memoria del proceso. Esto importa porque un servicio gratuito en Render puede reiniciarse por inactividad en cualquier momento — con el checkpointer anterior (`MemorySaver`, en RAM), ese reinicio borraba silenciosamente todas las conversaciones activas.
@@ -399,6 +407,8 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/flujo-responde-o-no-responde.svg` — árbol de decisión de alto nivel: cuándo el asistente responde y cuándo no.
 - `docs/flujo_fallback_vademecum_kaggle_chile.svg` — detalle técnico del fallback Kaggle → verificación LLM → vademécum chileno (MCP), con tiempos reales medidos.
+- `docs/flujo_principal_asistente_farmacias.svg` — diagrama del flujo de decisión completo (front, API, guardrails, agente, respuesta).
+- `docs/detalle_tools_y_servidor_mcp.svg` — diagrama de las 4 tools del agente y la separación en dos servicios del vademécum chileno.
 - `docs/capas-seguridad.svg` — diagrama de defensa en profundidad (7 capas, controles implementados).
 - `docs/cadena-guard-model.svg` / `docs/cadena-gen-model.svg` — diagramas de las cadenas de fallback de modelos.
 - `eval/preguntas_respondibles.md` / `eval/preguntas_no_respondibles.md` — dataset de evaluación, editable sin tocar código.
