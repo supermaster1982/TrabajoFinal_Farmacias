@@ -380,13 +380,13 @@ Desde el front, todo esto pasa automático — no hace falta hacerlo a mano.
 poetry run python eval_vademecum.py
 ```
 
-**Evaluación formal en LangSmith** (sube un dataset + corre un Experimento real, visible en la plataforma con 6 scores por pregunta — `bloqueo_correcto`, `sin_disclaimer_injustificado`, `correctness`, `faithfulness`, `relevance`, `no_recomienda_dosis`):
+**Evaluación formal en LangSmith** (sube un dataset + corre un Experimento real, visible en la plataforma con 6 scores por pregunta — `bloqueo_correcto`, `sin_disclaimer_injustificado`, `correctness`, `faithfulness`, `relevance`, `no_recomienda_dosis`). Requiere tener `DATABASE_URL` configurada en tu `.env` (ver "Requisitos previos") — `eval_langsmith.py` importa `graph.py`, que exige esta variable para arrancar, igual que al levantar el backend normal:
 ```bash
 poetry run python eval_langsmith.py
 ```
 Si tienes preguntas del vademécum chileno en el dataset, el servidor MCP debe estar corriendo antes de correr el eval.
 
-Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Experiments → `asistente-farmacias-eval`.
+Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Experiments → `asistente-farmacias-eval`. Por defecto, cada cuenta de LangSmith crea una organización personal que solo tú puedes ver — si el equipo necesita ver los mismos resultados, hay que invitarlos como miembros a tu organización/workspace (el plan gratuito incluye 1 solo asiento; agregar gente puede requerir plan pago). Alternativa sin costo: compartir el link público de una traza puntual (botón "Share" dentro de la traza en LangSmith), o exportar capturas de los resultados clave.
 
 Las preguntas de prueba (22 en total: 9 informativas + 13 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` — para agregar una pregunta nueva, o cambiar el `tipo`/`esperado` de una existente, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente contra LangSmith (agrega lo nuevo y actualiza lo que cambió), sin duplicar lo que ya estaba subido.
 
