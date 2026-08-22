@@ -252,7 +252,7 @@ poetry run python load_vademecum_chile.py
 
 **Si vas a usar el vademécum chileno**, levanta primero el servidor MCP, en su propia terminal:
 ```bash
-poetry run python servidor_vademecum_chile.py
+poetry run uvicorn servidor_vademecum_chile:app --reload --host 127.0.0.1 --port 8803
 ```
 Debe quedar corriendo — el backend se conecta a él al arrancar. Sin este paso, el sistema sigue funcionando, solo que sin la fuente secundaria de vademécum (Kaggle sigue funcionando normal).
 
