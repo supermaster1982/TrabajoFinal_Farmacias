@@ -104,12 +104,17 @@ EVAL_DATASET = cargar_dataset()
 
 def subir_dataset(client: Client) -> str:
     """Crea el dataset si no existe, y SINCRONIZA las preguntas de eval/*.md
-    contra lo que ya está subido a LangSmith — agrega solo las que faltan
-    (por texto de pregunta), sin duplicar las que ya estaban.
-
-    Antes, esta función solo revisaba "¿existe el dataset?" y si la
-    respuesta era sí, nunca volvía a comparar contenido — agregar una
-    pregunta nueva al .md no tenía ningún efecto en corridas siguientes."""
+    contra lo que ya está subido a LangSmith:
+    1. Agrega las preguntas nuevas (por texto) que no existían aún.
+    2. ACTUALIZA el 'tipo'/'esperado' de preguntas que ya existían, si el
+       .md local cambió su comportamiento esperado — sin esto, cambiar una
+       pregunta de "informativa" a "adversaria" en el .md (ej. Viadil, tras
+       decidir que debía bloquearse completo) no tenía ningún efecto: el
+       ejemplo en LangSmith seguía con el tipo viejo para siempre, y el
+       evaluador bloqueo_correcto_evaluator seguía juzgando contra un
+       comportamiento esperado que ya no era el correcto — hallazgo real
+       (agosto 2026): Viadil daba bloqueo_correcto=0.0 pese a bloquearse
+       perfectamente, porque LangSmith aún decía tipo="informativa"."""
     if not client.has_dataset(dataset_name=DATASET_NAME):
         client.create_dataset(
             DATASET_NAME,
@@ -118,18 +123,36 @@ def subir_dataset(client: Client) -> str:
         print(f"Dataset '{DATASET_NAME}' creado")
 
     dataset = client.read_dataset(dataset_name=DATASET_NAME)
-    ya_subidas = {ex.inputs.get("pregunta") for ex in client.list_examples(dataset_id=dataset.id)}
+    existentes = {ex.inputs.get("pregunta"): ex for ex in client.list_examples(dataset_id=dataset.id)}
 
-    nuevas = [item for item in EVAL_DATASET if item["pregunta"] not in ya_subidas]
+    nuevas = [item for item in EVAL_DATASET if item["pregunta"] not in existentes]
     if nuevas:
         examples = [
             {"inputs": {"pregunta": item["pregunta"]}, "outputs": {"esperado": item["esperado"], "tipo": item["tipo"]}}
             for item in nuevas
         ]
         client.create_examples(dataset_id=dataset.id, examples=examples)
-        print(f"Se agregaron {len(nuevas)} pregunta(s) nueva(s) al dataset (encontradas en eval/*.md, no estaban en LangSmith aún)")
-    else:
-        print(f"Dataset '{DATASET_NAME}' ya tiene las {len(EVAL_DATASET)} preguntas de eval/*.md — nada que sincronizar")
+        print(f"Se agregaron {len(nuevas)} pregunta(s) nueva(s) al dataset")
+
+    actualizadas = []
+    for item in EVAL_DATASET:
+        ex = existentes.get(item["pregunta"])
+        if ex is None:
+            continue  # es nueva, ya se subió arriba
+        outputs_actual = ex.outputs or {}
+        outputs_nuevo = {"esperado": item["esperado"], "tipo": item["tipo"]}
+        if outputs_actual.get("tipo") != outputs_nuevo["tipo"] or outputs_actual.get("esperado") != outputs_nuevo["esperado"]:
+            actualizadas.append((ex.id, item["pregunta"], outputs_nuevo))
+
+    for example_id, pregunta, outputs_nuevo in actualizadas:
+        client.update_example(example_id=example_id, outputs=outputs_nuevo)
+        print(f"  Actualizado: '{pregunta[:60]}...' -> tipo={outputs_nuevo['tipo']}")
+
+    if actualizadas:
+        print(f"Se actualizaron {len(actualizadas)} pregunta(s) existente(s) cuyo tipo/esperado cambió en eval/*.md")
+
+    if not nuevas and not actualizadas:
+        print(f"Dataset '{DATASET_NAME}' ya tiene las {len(EVAL_DATASET)} preguntas de eval/*.md sincronizadas — nada que hacer")
 
     return DATASET_NAME
 

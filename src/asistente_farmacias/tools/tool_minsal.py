@@ -26,11 +26,11 @@ from pathlib import Path
 import requests
 from langchain_core.tools import tool
 
-#URL_TURNOS = "https://midas.minsal.cl/farmacia_v2/WS/getLocalesTurnos.php"
-#URL_LOCALES = "https://midas.minsal.cl/farmacia_v2/WS/getLocales.php"
+
 URL_TURNOS = "https://minsal-proxy-70640654403.southamerica-west1.run.app/turnos"
 URL_LOCALES = "https://minsal-proxy-70640654403.southamerica-west1.run.app/locales"
 
+#se incrementa timeout a 10 seg
 TIMEOUT_SEGUNDOS = 10
 CACHE_TTL_SEGUNDOS = 15 * 60  # 15 minutos, mismo valor que el ejemplo del enunciado
 

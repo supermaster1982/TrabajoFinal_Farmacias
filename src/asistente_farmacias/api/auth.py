@@ -20,10 +20,14 @@ Cómo funciona:
 """
 
 import os
+import secrets
 import time
-import uuid
+import unicodedata
 
 import jwt
+from faker import Faker
+
+_fake = Faker("es_CL")
 
 SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY")
 if not SESSION_SECRET_KEY:
@@ -34,9 +38,11 @@ if not SESSION_SECRET_KEY:
     )
 
 _ALGORITMO = "HS256"
-_EXPIRACION_SEGUNDOS = 45 * 60  # 45 min — se renueva automáticamente en cada
-# pregunta mientras la persona esté activa (ver renovar_sesion). Si alguien
-# roba un token y no lo usa de inmediato, deja de servir pronto.
+_EXPIRACION_SEGUNDOS = 45 * 60 # 45 min desde que se crea la sesión — fijo,
+# no se renueva con el uso. Al vencer, /chat lo rechaza (401) y el front
+# debe pedir una sesión nueva (nuevo user_id, memoria en blanco). Evita
+# que un token robado quede útil indefinidamente mientras alguien lo siga
+# usando cada cierto tiempo.
 
 
 class TokenInvalidoError(Exception):
@@ -50,20 +56,33 @@ def _firmar(session_id: str) -> str:
     return jwt.encode(payload, SESSION_SECRET_KEY, algorithm=_ALGORITMO)
 
 
+def _generar_user_id() -> str:
+    """Nombre corto y amigable (ej. 'Valentina482'), no un hex ilegible —
+    se muestra en el front y es literalmente el valor que viaja en
+    {user_id, pregunta} del contrato de la API. Faker genera esto de forma
+    local, sin llamadas de red ni telemetría — no es un dato personal real,
+    es un nombre de fantasía generado al azar. El sufijo numérico (4 dígitos,
+    aleatorio criptográfico) da suficiente espacio para evitar colisiones
+    entre sesiones distintas incluso con volumen alto — dos personas nunca
+    deberían terminar compartiendo el mismo user_id, o sus memorias de
+    conversación se mezclarían.
+
+    Se quitan tildes/ñ (ej. "Úrsula" -> "Ursula") para evitar inconsistencias
+    si el user_id se normaliza distinto en algún punto del camino (front,
+    URL, comparación de texto) — más seguro como identificador técnico."""
+    nombre = _fake.first_name()
+    nombre_sin_tildes = "".join(
+        c for c in unicodedata.normalize("NFKD", nombre) if not unicodedata.combining(c)
+    )
+    sufijo = secrets.randbelow(9000) + 1000  # 1000-9999
+    return f"{nombre_sin_tildes}{sufijo}"
+
+
 def crear_sesion() -> tuple[str, str]:
-    """Genera un session_id aleatorio (SIN ningún dato personal) y lo firma
-    en un JWT. Devuelve (session_id, token)."""
-    session_id = str(uuid.uuid4())
-    return session_id, _firmar(session_id)
-
-
-def renovar_sesion(session_id: str) -> str:
-    """Emite un token NUEVO para el mismo session_id, con la expiración
-    reiniciada a 45 min desde ahora. Se llama en cada pregunta exitosa —
-    así, mientras la persona siga activa, la sesión nunca expira de
-    verdad; si deja de usarse (token robado y no reutilizado, o la
-    persona simplemente se va), expira en 45 min como máximo."""
-    return _firmar(session_id)
+    """Genera un user_id aleatorio y amigable (SIN ningún dato personal
+    real) y lo firma en un JWT. Devuelve (user_id, token)."""
+    user_id = _generar_user_id()
+    return user_id, _firmar(user_id)
 
 
 def verificar_sesion(token: str) -> str:

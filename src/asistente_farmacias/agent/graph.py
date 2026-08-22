@@ -36,6 +36,8 @@ from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_registradas,
 )
 from asistente_farmacias.tools.tool_rag import buscar_ficha_medicamento
+# - agrego nueva tool de vadecum_chile
+from asistente_farmacias.tools.tool_rag_chile import buscar_ficha_medicamento_chile
 from asistente_farmacias.guardrails.clinical_gate import (
     MENSAJE_SEGURO,
     evaluar_entrada,
@@ -88,8 +90,12 @@ SYSTEM_PROMPT = (
     "farmacia está ABIERTA/DE TURNO ahora mismo. Usa "
     "'consultar_farmacias_registradas' cuando pregunten si existe una "
     "farmacia en particular o quieran un listado general (sin importar si "
-    "está abierta ahora). Usa 'buscar_ficha_medicamento' para preguntas "
-    "sobre qué es un medicamento o para qué sirve. "
+    "está abierta ahora). Usa 'buscar_ficha_medicamento' (vademécum internacional) PRIMERO para "
+    "preguntas sobre qué es un medicamento o para qué sirve. Si esa tool "
+    "responde que no encontró información suficientemente relevante, intenta "
+    "también 'buscar_ficha_medicamento_chile' (vademécum chileno) antes de "
+    "decirle a la persona que no tienes información — puede ser una marca "
+    "registrada en Chile que no está en el vademécum internacional. "
     "Si 'consultar_farmacias_de_turno' no encuentra resultados para una "
     "comuna, intenta también 'consultar_farmacias_registradas' para esa "
     "misma comuna y ofrece esa información como alternativa, dejando claro "
@@ -153,7 +159,12 @@ _modelo_con_fallback = _modelo_principal.with_fallbacks(_modelos_respaldo)
 
 _react_agent = create_react_agent(
     model=_modelo_con_fallback,
-    tools=[consultar_farmacias_de_turno, consultar_farmacias_registradas, buscar_ficha_medicamento],
+    tools=[
+        consultar_farmacias_de_turno,
+        consultar_farmacias_registradas,
+        buscar_ficha_medicamento,
+        buscar_ficha_medicamento_chile,
+    ],
     prompt=SYSTEM_PROMPT,
     checkpointer=_checkpointer,
 )
@@ -167,6 +178,7 @@ class EstadoConversacion(TypedDict, total=False):
     fallo_tecnico_entrada: bool
     respuesta_agente: str
     contexto_tools: list[str]
+    citas: list[str]
     bloqueado_en_salida: bool
     razon_salida: str
     fallo_tecnico_salida: bool
@@ -248,6 +260,48 @@ def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
         # bloqueada o no — para que el próximo turno la recuerde igual.
         _registrar_pregunta(estado["user_id"], estado["pregunta"])
 
+_CITA_RAG_RE = re.compile(r"\[Fuente: (?P<fuente>[^—]+) — (?P<nombre>[^·]+)· relevancia=[\d.]+\]")
+
+
+def _extraer_citas(tool_messages: list[ToolMessage]) -> list[str]:
+    """Arma las líneas de cita a partir de las tools realmente invocadas en
+    este turno — determinístico, no depende de que el LLM decida mencionar
+    la fuente en su respuesta (requisito del enunciado: "siempre citando la
+    fuente" al entregar información de una ficha o dato de MINSAL). Mismo
+    principio que _criterio4_verificado en clinical_gate.py: no confiar
+    ciegamente en el LLM cuando se puede verificar/forzar en código."""
+    citas: list[str] = []
+    for m in tool_messages:
+        nombre_tool = getattr(m, "name", "") or ""
+        contenido = m.content if isinstance(m.content, str) else str(m.content)
+
+        if any(err in contenido for err in ("no está respondiendo", "no pude consultar", "formato inesperado")):
+            continue  # fallo técnico — no hay dato real que citar
+
+        if nombre_tool in ("buscar_ficha_medicamento", "buscar_ficha_medicamento_chile"):
+            for match in _CITA_RAG_RE.finditer(contenido):
+                cita = f"Fuente: {match.group('fuente').strip()} — ficha de {match.group('nombre').strip()}"
+                if cita not in citas:
+                    citas.append(cita)
+
+        elif nombre_tool in ("consultar_farmacias_de_turno", "consultar_farmacias_registradas"):
+            if "snapshot guardado del" in contenido:
+                fecha_match = re.search(r"snapshot guardado del ([^(]+)\(", contenido)
+                fecha = fecha_match.group(1).strip() if fecha_match else "fecha no disponible"
+                cita = f"Fuente: Ministerio de Salud de Chile (MINSAL) — dato guardado el {fecha}, sin conexión en vivo"
+            else:
+                cita = "Fuente: Ministerio de Salud de Chile (MINSAL)"
+            if cita not in citas:
+                citas.append(cita)
+
+    return citas
+
+
+def _agregar_citas(respuesta: str, citas: list[str]) -> str:
+    """Agrega las citas al final de la respuesta, una sola vez."""
+    if not citas:
+        return respuesta
+    return respuesta + "\n\n" + "\n".join(citas)
 
 def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
     config = {
@@ -274,15 +328,49 @@ def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
         }
 
     mensajes = resultado["messages"]
-    contexto_tools = [m.content for m in mensajes if isinstance(m, ToolMessage)]
+    # El checkpointer acumula TODOS los mensajes de la conversación, no
+    # solo los de este turno — sin este filtro, las citas (y el contexto
+    # para faithfulness) de preguntas anteriores se mezclan con las del
+    # turno actual. Filtro: solo lo que vino DESPUÉS del último HumanMessage
+    # (la pregunta actual), que siempre queda al final de la lista.
+    ultimo_human_idx = max(
+        (i for i, m in enumerate(mensajes) if isinstance(m, HumanMessage)),
+        default=0,
+    )
+    mensajes_turno_actual = mensajes[ultimo_human_idx:]
+    tool_msgs = [m for m in mensajes_turno_actual if isinstance(m, ToolMessage)]
+    contexto_tools = [m.content for m in tool_msgs]
     respuesta_limpia = _colapsar_texto_duplicado(mensajes[-1].content)
-    return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools}
+    # Las citas se calculan acá pero NO se agregan al texto todavía —
+    # gate_salida debe evaluar la respuesta real del agente, sin el ruido
+    # de una línea de cita bibliográfica pegada al final (hallazgo real:
+    # la cita de un medicamento fuera del corpus, ej. "Venlafaxine" para
+    # una pregunta de "Viadil", podía influir en el criterio 4 de la
+    # guarda). Se agregan recién en _nodo_respuesta_ok, después de que la
+    # respuesta ya fue aprobada.
+    citas = _extraer_citas(tool_msgs)
+    return {"respuesta_agente": respuesta_limpia, "contexto_tools": contexto_tools, "citas": citas}
 
 
 def _nodo_gate_salida(estado: EstadoConversacion) -> EstadoConversacion:
-    historial = _obtener_preguntas_previas(estado["user_id"])
+    # A diferencia de gate_entrada, acá el historial NO debe incluir la
+    # pregunta del turno actual — _registrar_pregunta() ya la guardó en
+    # gate_entrada (antes de llegar aquí), así que _obtener_preguntas_previas
+    # la trae de vuelta como si fuera "un turno anterior". Sin este filtro,
+    # una pregunta que combina síntoma + medicamento en el MISMO mensaje
+    # (ej. "me duele la guata, ¿para qué sirve el Viadil?") termina
+    # comparándose contra sí misma en el criterio 4 — hallazgo real
+    # confirmado con evidencia (agosto 2026): el historial mostraba
+    # literalmente la pregunta actual como "anterior".
+    historial_completo = _obtener_preguntas_previas(estado["user_id"])
+    historial = "\n".join(
+        linea for linea in historial_completo.splitlines()
+        if linea.strip() != f"- {estado['pregunta']}"
+    )
     try:
-        evaluacion = evaluar_salida(estado["respuesta_agente"], historial=historial, config=_lf_config())
+        evaluacion = evaluar_salida(
+            estado["respuesta_agente"], historial=historial, pregunta_actual=estado["pregunta"], config=_lf_config()
+        )
         print(f"🚦 gate_salida · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
         return {
             "bloqueado_en_salida": evaluacion.es_peligroso,
@@ -303,7 +391,8 @@ def _nodo_respuesta_segura(estado: EstadoConversacion) -> EstadoConversacion:
 
 
 def _nodo_respuesta_ok(estado: EstadoConversacion) -> EstadoConversacion:
-    return {"respuesta_final": estado["respuesta_agente"]}
+    respuesta = _agregar_citas(estado["respuesta_agente"], estado.get("citas", []))
+    return {"respuesta_final": respuesta}
 
 
 def _routing_entrada(estado: EstadoConversacion) -> str:

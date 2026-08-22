@@ -1,29 +1,31 @@
 """
-rag_subgrafo.py — Sub-grafo del RAG: retrieve → rerank → filter como nodos
-explícitos, en vez de vivir "escondidos" dentro de una sola función de tool.
+rag_subgrafo_chile.py — Sub-grafo del RAG para el vademécum CHILENO (JSON
+del profesor), independiente del vademécum de Kaggle (rag_subgrafo.py).
+Mismo patrón exacto: retrieve → rerank → filter como nodos explícitos —
+ver rag_subgrafo.py para el razonamiento completo de por qué es un
+sub-grafo separado del grafo principal, y por qué config va como parámetro
+del nodo (LangGraph lo inyecta) en vez de vivir en el estado.
 
-Por qué un SUB-grafo, y no meter estos 3 pasos en el grafo PRINCIPAL
-(agent/graph.py): el grafo principal tiene que elegir entre 3 herramientas
-(2 de MINSAL + esta de RAG) — retrieve/rerank/filter solo tienen sentido
-cuando la pregunta es de medicamentos, no cuando es de farmacias.
+Por qué un archivo aparte, y no reutilizar rag_subgrafo.py con un parámetro
+de colección: cada vademécum tiene su propio umbral de similitud mínima,
+calibrado con evidencia real y propia de SU corpus — mezclar ambos en un
+solo archivo parametrizado complica innecesariamente algo que hoy es
+simple, y separa con claridad qué pertenece a cada fuente de datos.
 
-Historial de fixes reales encontrados durante el desarrollo:
-1. TypeError de serialización: el config de observabilidad NO puede vivir
-   en el estado del grafo (rompe con CallbackManager no serializable) —
-   se pasa como parámetro del nodo, LangGraph lo inyecta solo.
-2. Re-rank paralelizado (ThreadPoolExecutor): de ~8x el tiempo de una
-   llamada a ~1x, sin cambiar el costo en tokens.
-3. RERANK_ACTIVADO=false por defecto: el mini-eval no mostró mejora de
-   calidad medible con este corpus (220 fichas atómicas).
-4. Filtro de similitud mínima de embeddings (este cambio): sin re-rank
-   LLM, TODAS las candidatas recibían score=1.0 sin ninguna discriminación
-   real — cuando el medicamento preguntado NO existe en el corpus (ej.
-   "Viadil", marca chilena ausente del dataset internacional), el sistema
-   igual devolvía el "menos malo" de los candidatos como si fuera la
-   respuesta correcta (ej. entregó info de Venlafaxina para una pregunta
-   sobre Viadil). Este filtro usa el score REAL de similitud de coseno de
-   Qdrant (gratis, sin LLM) para descartar candidatas que ni remotamente
-   se parecen a la pregunta, incluso con el re-rank LLM apagado.
+Hallazgo real que motivó recalibrar el umbral (no reusar el 0.4 de Kaggle):
+con muestras de 50 y luego 500 medicamentos indexados, la pregunta
+"Aartfenacin" (antihistamínico, Fexofenadina) devolvía consistentemente
+"ABATERO" (Abiraterona, oncológico — sin relación real) como candidata con
+score ~0.517 — más alto que el umbral de Kaggle (0.4), así que ese umbral
+habría dejado pasar el falso positivo. El mismo caso se repitió con 50 y
+con 500 medicamentos (no era ruido de muestra chica), señal de que este
+corpus necesita un umbral más exigente. Se calibró en 0.55: por encima del
+falso positivo confirmado (0.517), por debajo de los casos genuinamente
+relevantes observados (Aartfenacin 0.549-0.606 según la pregunta, Aartiflox
+0.655, Acecnou/Fosfomicina 0.601 para una pregunta de infección urinaria).
+Pendiente: re-confirmar este umbral una vez indexado el dataset completo
+(12,411 fichas) — con más candidatas reales disponibles, la distribución de
+scores puede desplazarse.
 """
 
 import os
@@ -72,34 +74,26 @@ def _es_medicamento_relacionado(pregunta: str, nombre_ficha: str, config: Runnab
 
 EMBED_MODEL = "text-embedding-3-large"
 EMBED_DIMS = 256
-COLLECTION = "vademecum_medicamentos"
+COLLECTION = "vademecum_chile"
 
 K_RETRIEVAL = 8
-THRESHOLD = 0.4
-K_FINAL = 1  # antes 3: con 3 fichas, el agente citaba fuentes que no
-             # terminaba usando en el texto de la respuesta (ej. preguntar
-             # por Ibuprofeno y citar también Paracetamol, sin mencionarlo)
-             # — con 1 sola ficha, la cita siempre coincide con lo dicho.
+K_FINAL = 1  # mismo criterio que rag_subgrafo.py — evita citar fuentes
+             # que no se mencionan en el texto de la respuesta final.
 
-# EMBEDDING_THRESHOLD_MINIMO: valor de partida razonable, NO calibrado aún
-# con datos reales de tu corpus. El código imprime el score real de cada
-# consulta en la terminal — ajusta este número después de ver varios casos
-# reales (uno donde SÍ está el medicamento, uno donde NO, como Viadil).
-# se probó el 0.35 sirve, pero cuando colocamos medicamento + sintoma
-# se cae, probar 0.5, se cambia a 0.4 porque pregunta como para que 
-#sirve el ibuprofeno que si esta en la data lo excluye
-EMBEDDING_THRESHOLD_MINIMO = 0.4
+# Ver docstring del módulo: calibrado con evidencia real (falso positivo
+# Aartfenacin/Abatero a 0.517), NO reutiliza el 0.4 de rag_subgrafo.py.
+# Confirmado con dos corridas (50 y 500 medicamentos): 0.54 descarta el
+# falso positivo (0.517) sin perder la segunda presentación real de
+# Aartfenacin (0.549, justo en el filo si el umbral fuera 0.55).
+EMBEDDING_THRESHOLD_MINIMO = 0.54
+THRESHOLD = 0.54
 
-# Re-rank del RAG: DESACTIVADO por defecto. Justificación (medida, no
-# asumida): el mini-eval (eval_vademecum.py) comparó sin_rerank vs
-# con_rerank sobre 3 preguntas de vademécum — AMBAS versiones obtuvieron
-# 1.00 en correctness/faithfulness/relevance, sin diferencia de calidad
-# medible. Con un corpus chico y muy estructurado (220 fichas atómicas) y
-# preguntas dominadas por el nombre del medicamento (señal casi inequívoca
-# para el embedding), el retrieval simple ya acierta sin necesitar una
-# segunda pasada de puntuación LLM. Se mantiene como flag disponible si el
-# corpus crece o se vuelve más ambiguo.
-RERANK_ACTIVADO = os.getenv("RERANK_ACTIVADO", "false").lower() == "true"
+# Mismo criterio de decisión que rag_subgrafo.py: desactivado por defecto,
+# disponible como flag. Con este corpus (12,411 fichas, bastante más grande
+# y potencialmente más ambiguo que las 220 de Kaggle) vale la pena revisar
+# esta decisión con un mini-eval propio antes de la entrega, en vez de
+# asumir que el mismo resultado de Kaggle aplica igual acá.
+RERANK_ACTIVADO = os.getenv("RERANK_ACTIVADO_CHILE", "false").lower() == "true"
 
 _RERANK_PROMPT = """Evalúa qué tan relevante es esta ficha de medicamento para responder
 la pregunta del usuario. Usa esta rúbrica:
@@ -127,7 +121,7 @@ def _get_vector_store() -> QdrantVectorStore:
     return _vector_store
 
 
-class RagState(TypedDict, total=False):
+class RagStateChile(TypedDict, total=False):
     pregunta: str
     candidatas: list
     scores_embedding: list[float]
@@ -135,34 +129,16 @@ class RagState(TypedDict, total=False):
     filtradas: list  # [(ficha, score), ...] — el resultado final
 
 
-def nodo_retrieve(estado: RagState) -> RagState:
+def nodo_retrieve(estado: RagStateChile) -> RagStateChile:
     vector_store = _get_vector_store()
     resultados = vector_store.similarity_search_with_score(estado["pregunta"], k=K_RETRIEVAL)
     candidatas = [doc for doc, score in resultados]
     scores_embedding = [score for doc, score in resultados]
-    print(f"🔍 retrieve · scores de embeddings: {[round(s, 3) for s in scores_embedding]}")
+    print(f"🔍 retrieve (chile) · scores de embeddings: {[round(s, 3) for s in scores_embedding]}")
     return {"candidatas": candidatas, "scores_embedding": scores_embedding}
 
 
-def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
-    """`config` como segundo parámetro: LangGraph lo inyecta automáticamente
-    en tiempo de ejecución — NO vive en el estado, así que no rompe la
-    serialización.
-
-    Primero aplica el filtro de similitud mínima de embeddings (siempre
-    activo, gratis, sin LLM). Recién después, si RERANK_ACTIVADO=true,
-    hace el re-rank LLM en paralelo sobre lo que sobrevivió ese filtro.
-
-    Hallazgo real (agosto 2026): al agregar el vademécum chileno como
-    fallback, se detectó que el umbral de similitud (0.4) deja pasar
-    candidatas SIN relación real cuando el medicamento preguntado no existe
-    en absoluto en este corpus (ej. "Aartfenacin" -> traía "Allopurinol",
-    score 0.508, sin relación real). El umbral nunca fue diseñado para
-    distinguir "no hay nada aquí" de "esto es lo más parecido que hay" —
-    solo para no descartar candidatas que sí existían. Se agregó una
-    verificación adicional con LLM (más robusta que comparar texto: entiende
-    traducciones, typos, abreviaciones) SOLO sobre la mejor candidata, antes
-    de aceptar el resultado del filtro de embeddings como válido."""
+def nodo_rerank(estado: RagStateChile, config: RunnableConfig) -> RagStateChile:
     candidatas = estado["candidatas"]
     scores_embedding = estado["scores_embedding"]
 
@@ -174,16 +150,18 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
             scores_filtrados.append(score)
 
     if not candidatas_filtradas:
-        print("🔍 filtro de embeddings · ninguna candidata superó el umbral mínimo (LLM rerank NO se llamó)")
+        print("🔍 filtro de embeddings (chile) · ninguna candidata superó el umbral mínimo (LLM rerank NO se llamó)")
         return {"puntuadas": []}
 
-    # Verificación adicional: ¿la MEJOR candidata (la de mayor score) tiene
-    # relación real con lo preguntado? Si no, se descartan todas — si la
-    # mejor no sirve, las demás (con score aún más bajo) tampoco.
+    # Verificación adicional: ¿la MEJOR candidata (mayor score) tiene
+    # relación real con lo preguntado? Ver docstring del módulo y el mismo
+    # bloque en rag_subgrafo.py (Kaggle) para el hallazgo completo que
+    # motivó esto. Si la mejor no sirve, las demás (score aún más bajo)
+    # tampoco — se descartan todas.
     mejor_ficha = candidatas_filtradas[0]
-    nombre_mejor = mejor_ficha.metadata.get("drug_name", mejor_ficha.page_content[:50])
+    nombre_mejor = mejor_ficha.metadata.get("nombre", mejor_ficha.page_content[:50])
     if not _es_medicamento_relacionado(estado["pregunta"], nombre_mejor, config):
-        print(f"🔍 verificación LLM · '{nombre_mejor}' no está relacionado con la pregunta — se descarta todo")
+        print(f"🔍 verificación LLM (chile) · '{nombre_mejor}' no está relacionado con la pregunta — se descarta todo")
         return {"puntuadas": []}
 
     if not RERANK_ACTIVADO:
@@ -205,14 +183,14 @@ def nodo_rerank(estado: RagState, config: RunnableConfig) -> RagState:
     return {"puntuadas": list(zip(candidatas_filtradas, scores))}
 
 
-def nodo_filter(estado: RagState) -> RagState:
+def nodo_filter(estado: RagStateChile) -> RagStateChile:
     ordenadas = sorted(estado["puntuadas"], key=lambda par: par[1], reverse=True)
     filtradas = [(ficha, score) for ficha, score in ordenadas if score >= THRESHOLD][:K_FINAL]
     return {"filtradas": filtradas}
 
 
 def _construir_subgrafo():
-    grafo = StateGraph(RagState)
+    grafo = StateGraph(RagStateChile)
     grafo.add_node("retrieve", nodo_retrieve)
     grafo.add_node("rerank", nodo_rerank)
     grafo.add_node("filter", nodo_filter)
@@ -226,8 +204,9 @@ def _construir_subgrafo():
 _subgrafo = _construir_subgrafo()
 
 
-def invocar_subgrafo(pregunta: str, config: RunnableConfig | None = None) -> list:
-    """Punto de entrada que usa tool_rag.py. Devuelve [(ficha, score), ...]
+def invocar_subgrafo_chile(pregunta: str, config: RunnableConfig | None = None) -> list:
+    """Punto de entrada equivalente a invocar_subgrafo() de rag_subgrafo.py,
+    pero contra la colección vademecum_chile. Devuelve [(ficha, score), ...]
     ya filtradas y ordenadas."""
     resultado = _subgrafo.invoke({"pregunta": pregunta}, config=config)
     return resultado["filtradas"]
