@@ -59,6 +59,14 @@ GET  /historial + Authorization: Bearer <token>
 
 **Decisión de diseño — separación en capas:** canal (API), orquestación (StateGraph), herramientas (4 tools, una de ellas por protocolo MCP), estado (checkpointer persistente por `user_id` + registro propio de preguntas para el historial de las guardas) y control transversal (guardas de entrada/salida) están separados en módulos distintos del código. Esto permite auditar y testear cada capa por separado, y — como se vio en la práctica con el MCP y con la migración de checkpointer — reemplazar la forma de acceder a una fuente de datos o de persistir el estado sin tocar el resto del sistema.
 
+Vista visual del flujo de decisión (front → API → guardrails → agente → respuesta):
+ 
+![Flujo principal de decisión](docs/flujo_principal_asistente_farmacias.svg)
+ 
+Detalle de las 4 tools del agente y la separación en dos servicios del vademécum chileno (servidor MCP como proceso aparte, sección 3.12):
+ 
+![Detalle de tools y servidor MCP](docs/detalle_tools_y_servidor_mcp.svg)
+
 ---
 
 ## 3. Seguridad — guardrails y defensa en profundidad
