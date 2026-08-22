@@ -2,6 +2,14 @@
 
 Protocolo simple para que la observabilidad (LangSmith, y opcionalmente Langfuse) no sea solo "datos que existen pero nadie mira" — define cuándo, cómo, y qué hacer con lo que se encuentre.
 
+## Política de retención de datos
+
+**Las trazas técnicas se conservan sin fecha de vencimiento.** Son la base de la mejora continua del sistema: permiten detectar patrones de falla a lo largo del tiempo, recalibrar parámetros con evidencia histórica (ej. el umbral de similitud 0.54 del vademécum chileno, calibrado comparando corridas con 50, 500 y 12.411 fichas — sección 5.3 del informe), y mantener el registro de los evals formales para comparar versiones del sistema entre sí. Borrar trazas periódicamente iría en contra del propio objetivo de este proceso de revisión.
+
+**No hace falta un plazo de anonimización porque el sistema no recolecta datos personales identificables desde el diseño.** El `user_id` es un nombre de fantasía generado con Faker (ej. "Valentina482"), sin vínculo a nombre real, email, teléfono, ni ningún otro dato que identifique a una persona (ver `docs/por-que-user-id.md`). Como las trazas nunca contuvieron un "nombre" que anonimizar, no hay nada que purgar en ese sentido — la privacidad se resuelve en el punto de origen (qué se recolecta), no con un borrado posterior.
+
+**Acceso a las trazas:** restringido a quienes tengan credenciales del proyecto en LangSmith/Langfuse — hoy, el equipo del proyecto. Si en el futuro el sistema agregara algún dato personal real (login real, email de contacto), este documento debe actualizarse con un plazo de retención explícito para ese dato puntual — hoy no aplica porque ese dato no existe.
+
 ## Frecuencia
 
 - **Antes de cada demo o entrega** — obligatorio.
