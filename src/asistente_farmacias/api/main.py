@@ -1,12 +1,20 @@
 """FastAPI que expone el agente.
 
-Contrato: POST /session -> {"token": "..."}
-          POST /chat {"pregunta": "..."} + header Authorization: Bearer <token>
-          -> {"respuesta": "...", "token": "..."} (token renovado)
+Contrato (pedido explícito de la rúbrica): POST /chat {"user_id": "...", "pregunta": "..."}
+          -> {"respuesta": "...", "user_id": "..."}
 
-El user_id real viene del token de sesión verificado (auth.py), no del
-body — evita que alguien pueda inventarse o adivinar el user_id de otra
-persona. Ver docs/por-que-user-id.md para el razonamiento completo.
+Dos caminos para el user_id, según si viene el header Authorization:
+  - CON token (de POST /session): el user_id real es el firmado dentro del
+    token, no el del body — si además viene user_id en el body, debe
+    coincidir (403 si no). Evita que alguien use el user_id de otra persona.
+  - SIN token: se usa el user_id del body tal cual, sin verificación de
+    firma — satisface el contrato {user_id, pregunta} literal para poder
+    probar la API directo, sin pasar por /session primero.
+
+POST /session es opcional pero recomendado: genera un user_id amigable
+(ej. "Valentina482", vía Faker) + un token JWT válido por 45 min FIJOS,
+sin renovación — al vencer, /chat responde 401 y hay que pedir una sesión
+nueva (memoria en blanco). Ver docs/por-que-user-id.md.
 """
 
 import logging
@@ -36,23 +44,35 @@ from asistente_farmacias.api import auth  # noqa: E402
 
 class ChatRequest(BaseModel):
     pregunta: str = Field(..., description="Pregunta del usuario.")
-    # user_id ya NO se recibe del cliente — se obtiene del token de sesión
-    # verificado (ver /session y auth.py), para que nadie pueda inventarse
-    # o adivinar el user_id de otra persona.
+    user_id: str | None = Field(
+        default=None,
+        description=(
+            "Opcional si mandas el header Authorization con un token de "
+            "sesión válido (se usa el user_id firmado dentro del token, y "
+            "si además mandas este campo, debe coincidir con ese). "
+            "Obligatorio si NO mandas Authorization — permite probar la "
+            "API directo con el contrato {user_id, pregunta}, sin pasar "
+            "por /session primero."
+        ),
+    )
 
 
 class ChatResponse(BaseModel):
     respuesta: str
-    token: str  # token renovado — el front debe reemplazar el que tenía guardado
+    user_id: str  # el user_id real usado en este turno — útil para confirmar identidad
+    # Ya no se devuelve un token renovado: la sesión dura 45 min fijos
+    # desde que se creó (ver auth.py). Cuando expira, /chat responde 401
+    # y el front debe pedir una sesión nueva.
 
 
 class SessionResponse(BaseModel):
+    user_id: str
     token: str
 
 
 app = FastAPI(
     title="Asistente Informativo de Farmacias y Medicamentos",
-    version="1.0.0-demo",
+    version="1.1.0-demo",
     description=(
         "API conversacional informativa sobre farmacias de turno en Chile "
         "y medicamentos. Consulta datos en vivo del MINSAL, utiliza búsqueda "
@@ -103,9 +123,12 @@ def health():
 @app.post("/session", response_model=SessionResponse)
 def crear_sesion():
     """Genera una sesión anónima nueva — sin login, sin datos personales.
-    El front la llama solo si no tiene un token guardado todavía."""
-    _, token = auth.crear_sesion()
-    return SessionResponse(token=token)
+    El front la llama al cargar si no tiene un token guardado, y también
+    cada vez que la persona pide un nombre nuevo ("recargar") — en ese
+    caso la conversación empieza de cero (nueva identidad = memoria nueva,
+    no se puede renombrar una sesión existente sin perder su historial)."""
+    user_id, token = auth.crear_sesion()
+    return SessionResponse(user_id=user_id, token=token)
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -123,13 +146,33 @@ async def chat(
             detail=f"Demasiadas solicitudes. Máximo {RATE_LIMIT_MAX} por minuto — espera un momento.",
         )
 
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Falta el token de sesión. Llama primero a POST /session.")
-    token_recibido = authorization.removeprefix("Bearer ").strip()
-    try:
-        user_id = auth.verificar_sesion(token_recibido)
-    except auth.TokenInvalidoError as e:
-        raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
+    if authorization and authorization.startswith("Bearer "):
+        # Camino seguro: el user_id real viene del token firmado, no del
+        # body — evita que alguien mande un user_id ajeno y se cuele en
+        # la memoria de otra persona.
+        token_recibido = authorization.removeprefix("Bearer ").strip()
+        try:
+            user_id = auth.verificar_sesion(token_recibido)
+        except auth.TokenInvalidoError as e:
+            raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
+        if request.user_id and request.user_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="El user_id del body no coincide con el de tu sesión — no puedes usar el user_id de otra persona.",
+            )
+    elif request.user_id:
+        # Camino directo: sin token, se acepta el user_id del body tal
+        # cual — satisface el contrato POST {user_id, pregunta} pedido
+        # explícitamente, para probar la API sin pasar por /session primero.
+        # Sin verificación de firma en este camino: quien lo use así no
+        # tiene la protección de que otro "adivine" su user_id (mismo
+        # trade-off que cualquier API que acepta un ID plano en el body).
+        user_id = request.user_id
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="Falta el user_id: manda 'user_id' en el body, o el header Authorization con un token de POST /session.",
+        )
 
     inicio = datetime.now(timezone.utc)
     print(f"🕐 [{inicio.isoformat()}] Pregunta de {user_id}: {request.pregunta}")
@@ -146,8 +189,7 @@ async def chat(
 
     response.headers["X-Timestamp-UTC"] = fin.isoformat()
 
-    token_renovado = auth.renovar_sesion(user_id)
-    return ChatResponse(respuesta=respuesta, token=token_renovado)
+    return ChatResponse(user_id=user_id,respuesta=respuesta)
 
 
 if __name__ == "__main__":

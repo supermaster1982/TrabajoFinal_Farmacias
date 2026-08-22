@@ -76,7 +76,10 @@ COLLECTION = "vademecum_medicamentos"
 
 K_RETRIEVAL = 8
 THRESHOLD = 0.4
-K_FINAL = 3
+K_FINAL = 1  # antes 3: con 3 fichas, el agente citaba fuentes que no
+             # terminaba usando en el texto de la respuesta (ej. preguntar
+             # por Ibuprofeno y citar también Paracetamol, sin mencionarlo)
+             # — con 1 sola ficha, la cita siempre coincide con lo dicho.
 
 # EMBEDDING_THRESHOLD_MINIMO: valor de partida razonable, NO calibrado aún
 # con datos reales de tu corpus. El código imprime el score real de cada

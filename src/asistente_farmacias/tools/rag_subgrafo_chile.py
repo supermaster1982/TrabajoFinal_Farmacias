@@ -77,7 +77,8 @@ EMBED_DIMS = 256
 COLLECTION = "vademecum_chile"
 
 K_RETRIEVAL = 8
-K_FINAL = 3
+K_FINAL = 1  # mismo criterio que rag_subgrafo.py — evita citar fuentes
+             # que no se mencionan en el texto de la respuesta final.
 
 # Ver docstring del módulo: calibrado con evidencia real (falso positivo
 # Aartfenacin/Abatero a 0.517), NO reutiliza el 0.4 de rag_subgrafo.py.
