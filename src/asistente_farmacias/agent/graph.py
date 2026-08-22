@@ -11,12 +11,29 @@ de la clase, adaptado de "guarda de tópico" a "guarda clínica"):
                                  ├── SÍ → nodo_respuesta_segura → END
                                  └── NO → END (respuesta tal cual)
 
-El agente ReAct (con las 3 tools + MemorySaver por user_id) que ya
+El agente ReAct (con las 3 tools + checkpointer por user_id) que ya
 validamos en stage 0 queda INTACTO — vive como un nodo adentro de este
 grafo más grande, no se reescribió su lógica interna.
 
 Por qué dos guardas (entrada y salida) y no solo una: ver docstring de
 `guardrails/clinical_gate.py`.
+
+--- Persistencia del historial (agosto 2026) ---
+El checkpointer del agente pasó de MemorySaver (en RAM, se pierde al
+reiniciar el proceso) a PostgresSaver (persiste en una base Postgres
+real). Motivo: la rúbrica exige historial multi-turno "persistido" por
+user_id (no solo "en memoria durante la sesión"), y Render puede reiniciar
+un servicio gratuito por inactividad en cualquier momento, sin que sea un
+ataque intencional a la demo — con MemorySaver, ese reinicio borra todas
+las conversaciones activas sin aviso. PostgresSaver sobrevive a eso.
+
+Nota de alcance: el registro aparte de preguntas para los guardrails
+(_historial_preguntas, más abajo) SIGUE en RAM por ahora — es una
+limitación conocida y documentada en el informe de seguridad, no un
+descuido. Afecta solo un caso puntual (detectar síntoma + medicamento en
+DOS mensajes separados) y solo si el servidor se reinicia justo entre esos
+dos mensajes — no la memoria de conversación principal, que es la que la
+rúbrica pide explícitamente.
 """
 
 import os
@@ -24,7 +41,7 @@ import re
 from typing import TypedDict
 
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import ToolMessage, HumanMessage
@@ -123,7 +140,30 @@ SYSTEM_PROMPT = (
     "nombre del síntoma como si fuera un medicamento."
 )
 
-_checkpointer = MemorySaver()
+# --- Checkpointer persistente (Postgres) ------------------------------------
+# Antes: MemorySaver() — en RAM, se perdía al reiniciar el proceso.
+# Ahora: PostgresSaver — el historial de conversación sobrevive a un
+# reinicio del servidor (obligatorio según la rúbrica, ver docstring del
+# módulo). DATABASE_URL sin valor por defecto a propósito, mismo criterio
+# que GEN_MODEL más abajo: si falta, se corta acá con un mensaje claro en
+# vez de fallar más adelante con un error críptico de conexión.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "Falta DATABASE_URL en tu .env — necesaria para persistir el "
+        "historial de conversación en Postgres (antes vivía en RAM con "
+        "MemorySaver). Copia la 'External Database URL' de tu base en "
+        "Render y agrégala como DATABASE_URL=... en tu .env."
+    )
+
+# from_conn_string() sin usar "with" a propósito: necesitamos que la
+# conexión viva durante TODA la vida del proceso (igual que el resto de
+# los objetos a nivel de módulo en este archivo, ej. _react_agent), no
+# solo dentro de un bloque — por eso se entra al context manager a mano
+# con __enter__() en vez de "with ... as checkpointer:".
+_checkpointer_cm = PostgresSaver.from_conn_string(DATABASE_URL)
+_checkpointer = _checkpointer_cm.__enter__()
+_checkpointer.setup()  # crea las tablas la primera vez; no rompe si ya existen
 
 
 # Los modelos de la familia gpt-5.6 exigen reasoning_effort="none" para
@@ -200,6 +240,12 @@ def _lf_config() -> dict:
 # justo las preguntas bloqueadas (por mencionar un síntoma) son las más
 # importantes de recordar, necesitamos un registro que capture TODO lo que
 # llega, sin importar si después se bloquea o no.
+#
+# NOTA (agosto 2026): este dict sigue en RAM a propósito — ver docstring
+# del módulo, sección "Nota de alcance". La memoria de conversación
+# principal (arriba) ya persiste en Postgres; esto es un registro auxiliar
+# más chico, con impacto acotado si se pierde, documentado como limitación
+# conocida en el informe de seguridad en vez de resolverse apurado hoy.
 _historial_preguntas: dict[str, list[str]] = defaultdict(list)
 
 
