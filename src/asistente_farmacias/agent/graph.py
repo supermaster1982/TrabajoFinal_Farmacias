@@ -493,6 +493,33 @@ class GuardaNoDisponibleError(Exception):
     petición hubiera sido evaluada y rechazada normalmente."""
 
 
+def obtener_historial(user_id: str) -> list[dict]:
+    """Devuelve el historial de conversación guardado para ese user_id, en
+    formato serializable (para exponer via GET /historial en main.py).
+
+    Solo incluye mensajes 'human' y 'ai' (la pregunta de la persona y la
+    respuesta final del asistente) — se excluyen los ToolMessage internos
+    (resultados crudos de MINSAL/RAG) porque son detalle de implementación,
+    no parte de la conversación que la persona vivió."""
+    config = {"configurable": {"thread_id": user_id}}
+    estado = _react_agent.get_state(config)
+    mensajes = estado.values.get("messages", []) if estado.values else []
+
+    resultado = []
+    for m in mensajes:
+        if isinstance(m, HumanMessage):
+            tipo = "human"
+        elif isinstance(m, ToolMessage):
+            continue  # detalle interno, no se muestra en el historial visible
+        else:
+            tipo = "ai"
+        contenido = m.content if isinstance(m.content, str) else str(m.content)
+        if not contenido.strip():
+            continue  # ej. un AIMessage vacío que solo trae tool_calls
+        resultado.append({"tipo": tipo, "contenido": contenido})
+    return resultado
+
+
 def responder(user_id: str, pregunta: str, request_id: str | None = None) -> str:
     """Punto de entrada usado por la API (main.py). Corre el grafo completo:
     guarda de entrada → agente → guarda de salida.

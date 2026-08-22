@@ -65,7 +65,7 @@ if not os.getenv("OPENAI_API_KEY"):
 
 # Import diferido a después de load_dotenv() / la validación de arriba,
 # para que el error de env var salga ANTES de intentar construir el agente.
-from asistente_farmacias.agent.graph import GuardaNoDisponibleError, responder  # noqa: E402
+from asistente_farmacias.agent.graph import GuardaNoDisponibleError, obtener_historial, responder  # noqa: E402
 from asistente_farmacias.api import auth  # noqa: E402
 
 
@@ -106,6 +106,16 @@ class ChatResponse(BaseModel):
 class SessionResponse(BaseModel):
     user_id: str
     token: str
+
+
+class HistorialItem(BaseModel):
+    tipo: str  # "human" o "ai"
+    contenido: str
+
+
+class HistorialResponse(BaseModel):
+    user_id: str
+    mensajes: list[HistorialItem]
 
 
 app = FastAPI(
@@ -190,6 +200,28 @@ def crear_sesion():
     no se puede renombrar una sesión existente sin perder su historial)."""
     user_id, token = auth.crear_sesion()
     return SessionResponse(user_id=user_id, token=token)
+
+
+@app.get("/historial", response_model=HistorialResponse)
+def historial(authorization: str | None = Header(default=None)):
+    """Devuelve el historial de conversación de la sesión actual — usado
+    por el botón 'Ver historial' del front. Requiere token de sesión
+    válido (mismo mecanismo que /chat): el user_id sale del token firmado,
+    nunca de un parámetro de la URL, para que nadie pueda leer el
+    historial de otra persona adivinando o mandando un user_id ajeno."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Falta el header Authorization con un token de sesión válido (POST /session primero).",
+        )
+    token_recibido = authorization.removeprefix("Bearer ").strip()
+    try:
+        user_id = auth.verificar_sesion(token_recibido)
+    except auth.TokenInvalidoError as e:
+        raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
+
+    mensajes = obtener_historial(user_id)
+    return HistorialResponse(user_id=user_id, mensajes=[HistorialItem(**m) for m in mensajes])
 
 
 @app.post("/chat", response_model=ChatResponse)

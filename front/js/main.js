@@ -8,6 +8,7 @@
   const backendUrlInput = document.getElementById("backendUrl");
   const mcpUrlInput = document.getElementById("mcpUrl");
   const newSessionBtn = document.getElementById("newSessionBtn");
+  const verHistorialBtn = document.getElementById("verHistorialBtn");
 
   // Token y user_id de sesión — se crean juntos (ver ensureSession) y
   // viven juntos: nunca debería haber un token guardado sin su user_id
@@ -193,6 +194,27 @@
         await ensureSession();
       } catch (_error) {
         dom.addMessage("error", "No se pudo generar una sesión nueva. Revisa la conexión con el backend.");
+      }
+    });
+  }
+
+  // Botón "Ver historial": trae la conversación guardada en Postgres para
+  // la sesión actual y la muestra en un panel superpuesto. Requiere una
+  // sesión activa (token válido) — si no hay, se crea una primero.
+    if (verHistorialBtn) {
+    verHistorialBtn.addEventListener("click", async () => {
+      try {
+        const token = await ensureSession();
+        const data = await api.fetchHistorial(backendUrlInput.value, token);
+        dom.showHistorial(data.user_id, data.mensajes);
+      } catch (error) {
+        console.error("Error al ver historial:", error); // <-- AGREGAR ESTA LÍNEA
+        if (error.status === 401) {
+          clearSession();
+          dom.addMessage("error", "⚠️ Tu sesión expiró. Envía una pregunta para crear una sesión nueva.");
+        } else {
+          dom.addMessage("error", "No se pudo obtener el historial. Revisa la conexión con el backend.");
+        }
       }
     });
   }

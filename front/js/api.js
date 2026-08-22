@@ -94,10 +94,31 @@ window.App.api = (function () {
     return response.json(); // { respuesta: "...", user_id: "..." } — sin token
   }
 
+  /**
+   * Trae el historial de conversación de la sesión actual (requiere
+   * token válido — el backend saca el user_id del token, nunca de un
+   * parámetro que el front podría falsificar).
+   */
+  async function fetchHistorial(apiUrl, token) {
+    const response = await fetch(normalizeUrl(apiUrl) + "/historial", {
+      method: "GET",
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    if (!response.ok) {
+      const error = new Error("No se pudo obtener el historial, status " + response.status);
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json(); // { user_id: "...", mensajes: [{ tipo, contenido }, ...] }
+  }
+
   return {
     checkHealth,
     checkMcpHealth,
     createSession,
     sendMessage,
+    fetchHistorial,
   };
 })();
