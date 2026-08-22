@@ -47,14 +47,14 @@ GET  /historial + Authorization: Bearer <token>
                  gate_salida (¿la respuesta igual recomendó algo?)          │
                      ├── SÍ → respuesta_segura → fin                        │
                      └── NO → respuesta_ok (cita agregada aquí)             │
-                                                                             ▼
-                                                          ┌──────────────────────────────┐
+                                                                            ▼
+                                                          ┌────────────────────────────────┐
                                                           │  SERVIDOR MCP (proceso aparte) │
                                                           │  servidor_vademecum_chile.py   │
-                                                          │  → rag_subgrafo_chile.py        │
-                                                          │  (retrieve + filtro 0.54 +       │
-                                                          │   verificación LLM) → Qdrant     │
-                                                          └──────────────────────────────┘
+                                                          │  → rag_subgrafo_chile.py       │
+                                                          │  (retrieve + filtro 0.54 +     │
+                                                          │   verificación LLM) → Qdrant   │
+                                                          └────────────────────────────────┘
 ```
 
 **Decisión de diseño — separación en capas:** canal (API), orquestación (StateGraph), herramientas (4 tools, una de ellas por protocolo MCP), estado (checkpointer persistente por `user_id` + registro propio de preguntas para el historial de las guardas) y control transversal (guardas de entrada/salida) están separados en módulos distintos del código. Esto permite auditar y testear cada capa por separado, y — como se vio en la práctica con el MCP y con la migración de checkpointer — reemplazar la forma de acceder a una fuente de datos o de persistir el estado sin tocar el resto del sistema.
