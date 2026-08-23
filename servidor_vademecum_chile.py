@@ -30,16 +30,49 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from dotenv import load_dotenv
 
 load_dotenv()
+
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:5500",
 )
 
+MCP_PORT = int(
+    os.getenv(
+        "PORT",
+        os.getenv("MCP_PORT_VADEMECUM_CHILE", "8803"),
+    )
+)
+
+RENDER_HOST = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from asistente_farmacias.tools.rag_subgrafo_chile import invocar_subgrafo_chile
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+
+allowed_hosts = [
+    "localhost:*",
+    "127.0.0.1:*",
+    "[::1]:*",
+]
+
+if RENDER_HOST:
+    allowed_hosts.extend(
+        [
+            RENDER_HOST,
+            f"{RENDER_HOST}:*",
+        ]
+    )
+
+transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=True,
+    allowed_hosts=allowed_hosts,
+    allowed_origins=[CORS_ALLOWED_ORIGINS],
+)
+
 
 mcp = FastMCP(
     "VademecumChile",
@@ -49,7 +82,11 @@ mcp = FastMCP(
         "contraindicaciones, efectos adversos. NUNCA para decidir una "
         "dosis para una persona ni indicar tratamiento."
     ),
+    host="0.0.0.0",
+    port=MCP_PORT,
+    transport_security=transport_security,
 )
+
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health_check(request: Request) -> JSONResponse:
@@ -64,7 +101,6 @@ async def health_check(request: Request) -> JSONResponse:
     )
 
 
-
 @mcp.tool(
     title="Buscar ficha de medicamento (Chile)",
     description=(
@@ -75,7 +111,6 @@ async def health_check(request: Request) -> JSONResponse:
         "la primera."
     ),
 )
-
 def buscar_ficha_medicamento_chile(medicamento: str) -> str:
     """Misma firma y mismo formato de salida (incluida la cita
     '[Fuente: ... — ... · relevancia=...]') que la versión anterior de
@@ -93,31 +128,21 @@ def buscar_ficha_medicamento_chile(medicamento: str) -> str:
         )
 
     bloques = []
+
     for ficha, score in filtradas:
         bloques.append(
             f"[Fuente: {ficha.metadata.get('fuente', 'vademécum chileno')} — "
             f"{ficha.metadata.get('nombre', '?')} · relevancia={score:.2f}]\n"
             f"{ficha.page_content}"
         )
+
     return "\n\n".join(bloques)
 
 
-
 if __name__ == "__main__":
-    port = int(
-        os.getenv(
-            "PORT",
-            os.getenv("MCP_PORT_VADEMECUM_CHILE", "8803"),
-        )
-    )
-
-    print(f"Iniciando servidor MCP VademecumChile en puerto {port}…")
+    print(f"Iniciando servidor MCP VademecumChile en puerto {MCP_PORT}…")
 
     try:
-        mcp.run(
-            transport="streamable-http",
-            host="0.0.0.0",
-            port=port,
-        )
+        mcp.run(transport="streamable-http")
     except KeyboardInterrupt:
         print("\nServidor MCP VademecumChile detenido.")
