@@ -70,23 +70,37 @@
     dom.setUserId(null);
   }
 
-  async function refreshConnectionStatus() {
-    try {
-      await api.checkHealth(backendUrlInput.value);
-      dom.setConnectionStatus(true, "Backend conectado");
-    } catch (_error) {
-      dom.setConnectionStatus(false, "Backend sin conexión");
+ async function refreshConnectionStatus() {
+  try {
+    await api.checkHealth(backendUrlInput.value);
+    dom.setConnectionStatus(true, "Backend conectado");
+
+    // Crear la sesión solamente después de confirmar
+    // que el backend está disponible.
+    if (!cachedToken || !cachedUserId) {
+      try {
+        await ensureSession();
+      } catch (error) {
+        console.error("Error creando sesión:", error);
+        dom.setUserId(null);
+      }
     }
 
-    try {
-      await api.checkMcpHealth(mcpUrlInput.value);
-      mcpAvailable = true;
-      dom.setMcpStatus(true, "MCP disponible");
-    } catch (_error) {
-      mcpAvailable = false;
-      dom.setMcpStatus(false, "MCP no disponible");
-    }
+  } catch (error) {
+    console.error("Backend no disponible:", error);
+    dom.setConnectionStatus(false, "Backend sin conexión");
   }
+
+  try {
+    await api.checkMcpHealth(mcpUrlInput.value);
+    mcpAvailable = true;
+    dom.setMcpStatus(true, "MCP disponible");
+  } catch (error) {
+    console.error("MCP no disponible:", error);
+    mcpAvailable = false;
+    dom.setMcpStatus(false, "MCP no disponible");
+  }
+}
 
   async function handleAsk(pregunta) {
     // Antes: si mcpAvailable era false, se bloqueaba CUALQUIER pregunta acá
@@ -231,17 +245,35 @@
   // backend. No se puede "renombrar" una sesión sin perder su historial,
   // así que acá se limpia también el chat visible para que quede
   // consistente con lo que realmente pasó del lado del servidor.
-  if (newSessionBtn) {
-    newSessionBtn.addEventListener("click", async () => {
-      clearSession();
-      dom.resetChat();
-      try {
-        await ensureSession();
-      } catch (_error) {
-        dom.addMessage("error", "No se pudo generar una sesión nueva. Revisa la conexión con el backend.");
-      }
-    });
-  }
+ if (newSessionBtn) {
+  newSessionBtn.addEventListener("click", async () => {
+    const textoOriginal = newSessionBtn.textContent;
+
+    newSessionBtn.disabled = true;
+    newSessionBtn.textContent = "Generando...";
+
+    clearSession();
+    dom.resetChat();
+
+    try {
+      await ensureSession();
+
+      console.log("Nueva sesión creada:", cachedUserId);
+
+    } catch (error) {
+      console.error("Error creando nueva sesión:", error);
+
+      dom.addMessage(
+        "error",
+        "No se pudo crear una nueva sesión. Intenta nuevamente."
+      );
+
+    } finally {
+      newSessionBtn.disabled = false;
+      newSessionBtn.textContent = textoOriginal;
+    }
+  });
+}
 
   // Botón "Ver historial": trae la conversación guardada en Postgres para
   // la sesión actual y la muestra en un panel superpuesto. Requiere una
@@ -275,10 +307,5 @@
   // entrada, sin esperar a la primera pregunta. Si falla (ej. backend
   // caído al abrir), no se muestra error acá: se reintenta solo al
   // primer intento de pregunta, dentro de handleAsk.
-  if (!cachedToken || !cachedUserId) {
-    ensureSession().catch(() => {
-      // silencioso: el estado del backend ya se refleja en el punto de
-      // arriba (refreshConnectionStatus); no hace falta duplicar el aviso.
-    });
-  }
+  
 })();
