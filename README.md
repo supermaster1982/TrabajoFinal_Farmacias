@@ -105,7 +105,7 @@ Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front"
 | Despliegue en la nube (backend + front) | ✅ |
 | **Sincronizar `DATABASE_URL` en el entorno de producción del backend** | ⏳ urgente, en curso |
 | Despliegue del servidor MCP en producción | ⏳ en curso (coordinando con el equipo) |
-| Matriz de riesgos con dueños nombrados (nombre y apellido real, no rol genérico) | ⏳ pendiente — falta que el equipo confirme nombres |
+| Matriz de riesgos con dueños nombrados (nombre y apellido real, confirmado por el equipo) | ✅ |
 
 ## Arquitectura
 
@@ -396,7 +396,7 @@ Las preguntas de prueba (22 en total: 9 informativas + 13 adversarias) viven en 
 ```bash
 # Edita .env: GUARD_MODEL=gpt-5.4-mini
 poetry run python eval_langsmith.py
-# Edita .env: GUARD_MODEL=gpt-5.4-nano
+# Edita .env: GEN_MODEL=gpt-5.4-nano
 poetry run python eval_langsmith.py
 ```
 El nombre del experimento en LangSmith incluye el modelo evaluado, para poder comparar corridas. Detalle completo de la comparación factorial 3×3 ya realizada, en `docs/eleccion-modelos-gen-guard.md`.
@@ -407,7 +407,7 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 
 ## Documentación adicional
 
-- `informe-seguridad-privacidad-calidad.md` — informe completo con matriz de 26 riesgos, hallazgos reales del desarrollo, y decisiones de diseño justificadas (incluye las secciones de MCP, persistencia en Postgres, e idempotencia/trazabilidad).
+- `informe-seguridad-privacidad-calidad.md` — informe completo con matriz de 26 riesgos (dueños con nombre real, confirmados por el equipo), hallazgos reales del desarrollo, y decisiones de diseño justificadas (incluye las secciones de MCP, persistencia en Postgres, e idempotencia/trazabilidad).
 - `docs/eleccion-modelos-gen-guard.md` — comparación factorial 3×3 de `GEN_MODEL`/`GUARD_MODEL`, con las 5 matrices de métricas y la decisión final justificada.
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/flujo-responde-o-no-responde.svg` — árbol de decisión de alto nivel: cuándo el asistente responde y cuándo no.
@@ -428,8 +428,7 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 ## Próximos pasos
 
 1. **Confirmar `DATABASE_URL` en el entorno de producción del backend (Render)** — urgente: el código ahora exige esta variable para arrancar; sin ella configurada, el próximo redeploy del backend en producción se cae.
-2. **Nombrar a los dueños reales en la matriz de riesgos** — la rúbrica exige nombre y apellido, no un rol genérico.
-3. Despliegue del servidor MCP en producción — implica coordinar 2 servicios en Render en vez de 1, con orden de arranque y la variable `MCP_VADEMECUM_CHILE_URL` apuntando a la URL pública real. En curso.
+2. Despliegue del servidor MCP en producción — implica coordinar 2 servicios en Render en vez de 1, con orden de arranque y la variable `MCP_VADEMECUM_CHILE_URL` apuntando a la URL pública real. En curso.
 
 ## Entregables de este trabajo
 
