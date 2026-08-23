@@ -101,7 +101,7 @@ Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front"
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
 | Evaluación formal en LangSmith (22 preguntas, 6 métricas) + comparación factorial 3×3 de modelos | ✅ |
 | Front conversacional (`front/index.html`) — muestra el nombre de sesión, botón para generar uno nuevo | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
-| Informe de seguridad/privacidad/calidad + matriz de riesgos (26 ítems, política de retención definida, 7 capas de seguridad completas) | ✅ |
+| Informe de seguridad/privacidad/calidad + matriz de riesgos (28 ítems, política de retención definida, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube (backend + front) | ✅ |
 | **Sincronizar `DATABASE_URL` en el entorno de producción del backend** | ⏳ urgente, en curso |
 | Despliegue del servidor MCP en producción | ⏳ en curso (coordinando con el equipo) |
@@ -227,6 +227,8 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 
 ## Mejoras recientes
 
+- **Resiliencia de la conexión a Postgres**: se reemplazó una conexión cruda única por un `ConnectionPool` (`psycopg_pool`) — la conexión anterior se rompía permanentemente ante cualquier caída momentánea de la base (confirmado con evidencia real de un error de producción), tumbando el backend hasta un reinicio manual. El pool reemplaza automáticamente las conexiones caídas. Detalle en el informe, sección 3.16.
+- **Turno nocturno (horario que cruza medianoche)**: validado con dato real y en vivo de MINSAL — una farmacia con horario `09:00 a 08:59` (turno de casi 24h) muestra correctamente la nota "(cierra al día siguiente)", generada de forma determinística por código, no por el LLM. Detalle en el informe, sección 3.15.
 - **Historial de conversación persistente en Postgres** (antes en memoria con `MemorySaver`) — ver sección dedicada arriba, y el informe (sección 3.13) para la validación con reinicio real del servidor.
 - **Idempotencia y trazabilidad por `request_id`** — ver sección dedicada arriba, y el informe (sección 3.14).
 - **Endpoint `GET /historial` + botón "Ver historial" en el front** — ver sección dedicada arriba.
@@ -407,7 +409,7 @@ El nombre del experimento en LangSmith incluye el modelo evaluado, para poder co
 
 ## Documentación adicional
 
-- `informe-seguridad-privacidad-calidad.md` — informe completo con matriz de 26 riesgos (dueños con nombre real, confirmados por el equipo), hallazgos reales del desarrollo, y decisiones de diseño justificadas (incluye las secciones de MCP, persistencia en Postgres, e idempotencia/trazabilidad).
+- `informe-seguridad-privacidad-calidad.md` — informe completo con matriz de 28 riesgos (dueños con nombre real, confirmados por el equipo), hallazgos reales del desarrollo, y decisiones de diseño justificadas (incluye las secciones de MCP, persistencia en Postgres, idempotencia/trazabilidad, turno nocturno y resiliencia de conexión a Postgres).
 - `docs/eleccion-modelos-gen-guard.md` — comparación factorial 3×3 de `GEN_MODEL`/`GUARD_MODEL`, con las 5 matrices de métricas y la decisión final justificada.
 - `docs/arquitectura.svg` / `docs/arquitectura-ilustrada.svg` — diagramas de arquitectura (versión técnica y versión ilustrada).
 - `docs/flujo-responde-o-no-responde.svg` — árbol de decisión de alto nivel: cuándo el asistente responde y cuándo no.
