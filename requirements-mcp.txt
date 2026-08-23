@@ -1,0 +1,7 @@
+mcp>=1.27,<2
+python-dotenv==1.2.3
+langgraph==0.2.76
+langchain-core==0.3.86
+langchain-openai==0.2.14
+qdrant-client==1.19.0
+langchain-qdrant==0.2.1
