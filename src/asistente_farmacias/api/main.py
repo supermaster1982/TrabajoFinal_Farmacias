@@ -51,7 +51,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Request, Depends
+from fastapi import FastAPI, HTTPException, Response, Request, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 
