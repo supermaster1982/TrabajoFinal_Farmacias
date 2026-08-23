@@ -177,6 +177,14 @@ _pool = ConnectionPool(
     max_size=5,  # suficiente para el volumen de este proyecto; evita agotar
                  # el límite de conexiones simultáneas del plan gratuito de Postgres
     kwargs={"autocommit": True, "row_factory": dict_row},  # requerido por PostgresSaver
+    check=ConnectionPool.check_connection,  # valida la conexión ANTES de
+    # entregarla (no solo después de que falla) — sin esto, confirmado con
+    # evidencia real: la primera pregunta justo después de un restart de la
+    # base todavía fallaba una vez (el pool recién descartaba la conexión
+    # muerta DESPUÉS del error), aunque el sistema sí se autoreparaba para
+    # la pregunta siguiente. Con esta verificación proactiva, el caso
+    # documentado por psycopg_pool para "reinicio del servidor de base de
+    # datos" queda cubierto sin ese primer fallo.
 )
 _pool.wait()  # espera a que al menos una conexión esté lista antes de seguir
 _checkpointer = PostgresSaver(_pool)
