@@ -35,15 +35,29 @@
   <div class="status-bar">
     <span>
       <span class="status-dot" id="statusDot" aria-hidden="true"></span>
-      <span id="statusText">Sin verificar conexión</span>
+      <span id="statusText">Backend sin verificar</span>
     </span>
-    <input
-      type="text"
-      id="apiUrl"    
-      spellcheck="false"
-      aria-label="URL de la API"
-      readonly
-    />
+
+    <input type="text" id="backendUrl" value="http://localhost:8000" spellcheck="false" aria-label="URL del backend" />
+  </div>
+
+  <div class="status-bar">
+    <span>
+      <span class="status-dot" id="mcpStatusDot" aria-hidden="true"></span>
+      <span id="mcpStatusText">MCP sin verificar</span>
+    </span>
+
+    <input type="text" id="mcpUrl" value="http://localhost:8803" spellcheck="false" aria-label="URL del MCP" />
+  </div>
+
+  <div class="status-bar" id="sessionBar">
+    <span>
+      Sesión: <strong id="userIdDisplay">—</strong>
+    </span>
+    <div style="display:flex; gap:8px;">
+      <button type="button" id="verHistorialBtn" class="chip">Ver historial</button>
+      <button type="button" id="newSessionBtn" class="chip">Generar otro nombre</button>
+    </div>
   </div>
 
   <main class="chat-log" id="chatLog" aria-live="polite" aria-label="Conversación">

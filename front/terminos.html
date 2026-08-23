@@ -82,7 +82,7 @@
     <p>Este es un <strong>proyecto educativo</strong>, desarrollado como Trabajo Final de un diplomado universitario. No es un producto comercial ni un servicio de salud. Informa sobre:</p>
     <ul>
       <li>Farmacias de turno y su directorio general, con datos consultados en vivo desde la API pública de MINSAL.</li>
-      <li>Información general de medicamentos, citada desde un vademécum indexado (dataset "Comprehensive Drug Information", de uso educativo).</li>
+      <li>Información general de medicamentos, citada desde dos vademécums indexados: un dataset internacional educativo ("Comprehensive Drug Information") y un vademécum chileno provisto como material de clase.</li>
     </ul>
 
     <h2>2. Qué NO hace este asistente</h2>
@@ -101,15 +101,15 @@
     <h2>4. Exactitud de la información</h2>
     <ul>
       <li>Los datos de farmacias de turno provienen de una fuente externa (MINSAL) que este proyecto no controla ni puede garantizar que esté siempre actualizada o completa.</li>
-      <li>El vademécum es un dataset educativo, en inglés (traducido por el sistema al responder), que <strong>no constituye una fuente clínica autoritativa</strong>.</li>
+      <li>Los vademécums son datasets de uso educativo — el internacional está en inglés (traducido por el sistema al responder) — que <strong>no constituyen una fuente clínica autoritativa</strong>.</li>
       <li>Aunque se han implementado múltiples controles para evitar errores, <strong>no se garantiza una exactitud del 100%</strong> en ninguna respuesta.</li>
     </ul>
 
     <h2>5. Datos y privacidad</h2>
     <ul>
-      <li>Este proyecto <strong>no tiene autenticación real</strong> — el identificador de conversación es cualquier texto que el cliente envíe, sin verificación de identidad. No debe considerarse un canal privado o seguro.</li>
-      <li>Las conversaciones pueden quedar registradas con fines de desarrollo, depuración y evaluación de calidad durante la etapa de desarrollo de este proyecto educativo.</li>
-      <li><strong>No ingreses</strong> información personal sensible real (nombre completo, RUT, datos de salud reales u otra información identificable) al usar este asistente.</li>
+      <li>Este proyecto usa una <strong>sesión anónima</strong>, no una cuenta con identidad real: al empezar a usar el asistente, el sistema genera automáticamente un nombre de fantasía (ej. "Valentina482") que identifica tu conversación — no está vinculado a tu nombre real, email, ni ningún dato personal, y puedes generar uno nuevo cuando quieras. Esta sesión es verificada por el servidor mediante un token firmado, válido por 45 minutos desde que se crea; al vencer, se requiere una sesión nueva.</li>
+      <li>Tu conversación se guarda de forma persistente mientras dure tu sesión activa, para que el asistente recuerde el contexto entre tus mensajes. También puede quedar registrada con fines de desarrollo, depuración y evaluación de calidad de este proyecto educativo.</li>
+      <li><strong>No ingreses</strong> información personal sensible real (nombre completo, RUT, datos de salud reales u otra información identificable) al usar este asistente — el nombre de sesión generado automáticamente es de fantasía; no lo reemplaces escribiendo tu propio nombre real en el chat.</li>
     </ul>
 
     <h2>6. Uso aceptado</h2>

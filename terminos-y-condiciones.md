@@ -7,7 +7,7 @@ Trabajo Final — Diplomado en IA Generativa (UEjecutivos, Universidad de Chile)
 
 Este es un **proyecto educativo**, desarrollado como Trabajo Final de un diplomado universitario. No es un producto comercial ni un servicio de salud. Informa sobre:
 - Farmacias de turno y su directorio general, con datos consultados en vivo desde la API pública de MINSAL.
-- Información general de medicamentos, citada desde un vademécum indexado (dataset "Comprehensive Drug Information", de uso educativo).
+- Información general de medicamentos, citada desde dos vademécums indexados: un dataset internacional educativo ("Comprehensive Drug Information") y un vademécum chileno provisto como material de clase.
 
 ## 2. Qué NO hace este asistente
 
@@ -26,14 +26,14 @@ Este asistente **no está diseñado ni debe usarse** para situaciones de urgenci
 ## 4. Exactitud de la información
 
 - Los datos de farmacias de turno provienen de una fuente externa (MINSAL) que este proyecto no controla ni puede garantizar que esté siempre actualizada o completa — pueden existir comunas sin datos, o datos desactualizados en el origen.
-- El vademécum es un dataset educativo, en inglés (traducido por el sistema al responder), que **no constituye una fuente clínica autoritativa** — puede no incluir marcas comerciales chilenas específicas, y su información general no reemplaza el prospecto oficial de un medicamento ni el criterio de un profesional.
+- Los vademécums son datasets de uso educativo — el internacional está en inglés (traducido por el sistema al responder) — que **no constituyen una fuente clínica autoritativa**: puede haber marcas comerciales no incluidas, y su información general no reemplaza el prospecto oficial de un medicamento ni el criterio de un profesional.
 - Al ser un sistema basado en modelos de lenguaje, aunque se han implementado múltiples controles para evitar errores (ver capas de seguridad documentadas en `docs/capas-seguridad.svg`), **no se garantiza una exactitud del 100%** en ninguna respuesta.
 
 ## 5. Datos y privacidad
 
-- Este proyecto **no tiene autenticación real** — el identificador de conversación (`user_id`) es cualquier texto que el cliente envíe, sin verificación de identidad. No debe considerarse un canal privado o seguro.
-- Las conversaciones pueden quedar registradas con fines de desarrollo, depuración y evaluación de calidad (LangSmith, y opcionalmente Langfuse) durante la etapa de desarrollo de este proyecto educativo.
-- **No ingreses** información personal sensible real (nombre completo, RUT, datos de salud reales u otra información identificable) al usar este asistente — es un entorno de prueba académico, no un sistema clínico con las protecciones que eso requeriría.
+- Este proyecto usa una **sesión anónima**, no una cuenta con identidad real: al empezar a usar el asistente, el sistema genera automáticamente un nombre de fantasía (ej. "Valentina482") que identifica tu conversación — no está vinculado a tu nombre real, email, ni ningún dato personal, y vos podés generar uno nuevo cuando quieras. Esta sesión es verificada por el servidor mediante un token firmado, válido por 45 minutos desde que se crea; al vencer, se requiere una sesión nueva.
+- Tu conversación (preguntas y respuestas) se guarda de forma persistente mientras dure tu sesión activa, para que el asistente recuerde el contexto entre tus mensajes. También puede quedar registrada con fines de desarrollo, depuración y evaluación de calidad de este proyecto educativo (LangSmith, y opcionalmente Langfuse) — ver la política de retención de datos en `docs/proceso-revision-trazas.md`.
+- **No ingreses** información personal sensible real (nombre completo, RUT, datos de salud reales u otra información identificable) al usar este asistente — es un entorno de prueba académico, no un sistema clínico con las protecciones que eso requeriría. El nombre de sesión generado automáticamente es de fantasía; no reemplaces ese diseño escribiendo tu propio nombre real en el chat.
 
 ## 6. Uso aceptado
 

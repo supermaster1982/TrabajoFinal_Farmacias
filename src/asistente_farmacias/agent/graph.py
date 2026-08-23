@@ -11,12 +11,29 @@ de la clase, adaptado de "guarda de tópico" a "guarda clínica"):
                                  ├── SÍ → nodo_respuesta_segura → END
                                  └── NO → END (respuesta tal cual)
 
-El agente ReAct (con las 3 tools + MemorySaver por user_id) que ya
+El agente ReAct (con las 3 tools + checkpointer por user_id) que ya
 validamos en stage 0 queda INTACTO — vive como un nodo adentro de este
 grafo más grande, no se reescribió su lógica interna.
 
 Por qué dos guardas (entrada y salida) y no solo una: ver docstring de
 `guardrails/clinical_gate.py`.
+
+--- Persistencia del historial (agosto 2026) ---
+El checkpointer del agente pasó de MemorySaver (en RAM, se pierde al
+reiniciar el proceso) a PostgresSaver (persiste en una base Postgres
+real). Motivo: la rúbrica exige historial multi-turno "persistido" por
+user_id (no solo "en memoria durante la sesión"), y Render puede reiniciar
+un servicio gratuito por inactividad en cualquier momento, sin que sea un
+ataque intencional a la demo — con MemorySaver, ese reinicio borra todas
+las conversaciones activas sin aviso. PostgresSaver sobrevive a eso.
+
+Nota de alcance: el registro aparte de preguntas para los guardrails
+(_historial_preguntas, más abajo) SIGUE en RAM por ahora — es una
+limitación conocida y documentada en el informe de seguridad, no un
+descuido. Afecta solo un caso puntual (detectar síntoma + medicamento en
+DOS mensajes separados) y solo si el servidor se reinicia justo entre esos
+dos mensajes — no la memoria de conversación principal, que es la que la
+rúbrica pide explícitamente.
 """
 
 import os
@@ -24,12 +41,14 @@ import re
 from typing import TypedDict
 
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import ToolMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
 from collections import defaultdict
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_de_turno,
@@ -123,7 +142,53 @@ SYSTEM_PROMPT = (
     "nombre del síntoma como si fuera un medicamento."
 )
 
-_checkpointer = MemorySaver()
+# --- Checkpointer persistente (Postgres) ------------------------------------
+# Antes: MemorySaver() — en RAM, se perdía al reiniciar el proceso.
+# Ahora: PostgresSaver — el historial de conversación sobrevive a un
+# reinicio del servidor (obligatorio según la rúbrica, ver docstring del
+# módulo). DATABASE_URL sin valor por defecto a propósito, mismo criterio
+# que GEN_MODEL más abajo: si falta, se corta acá con un mensaje claro en
+# vez de fallar más adelante con un error críptico de conexión.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "Falta DATABASE_URL en tu .env — necesaria para persistir el "
+        "historial de conversación en Postgres (antes vivía en RAM con "
+        "MemorySaver). Copia la 'External Database URL' de tu base en "
+        "Render y agrégala como DATABASE_URL=... en tu .env."
+    )
+
+# Hallazgo real (agosto 2026): una CONEXIÓN ÚNICA (PostgresSaver.from_conn_string,
+# como se usaba antes acá) se rompe permanentemente si Postgres la cierra por
+# su cuenta (timeout de inactividad, límite del plan gratuito, blip de red) —
+# confirmado con evidencia real: "server closed the connection unexpectedly",
+# y cada pregunta siguiente falló con "the connection is closed", incluso
+# después de que la red se recuperó, porque nada en el código reintentaba
+# reconectar. Con un servidor de larga duración (a diferencia de un script
+# corto), esto es inaceptable — una caída momentánea de Postgres tumbaría el
+# backend hasta el próximo reinicio manual.
+#
+# Solución: un POOL de conexiones (psycopg_pool.ConnectionPool) en vez de una
+# conexión cruda — es el patrón oficial recomendado por LangGraph para uso en
+# producción. El pool verifica la salud de sus conexiones y las reemplaza
+# solo cuando una se cae, sin que el resto del sistema se entere.
+_pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    max_size=5,  # suficiente para el volumen de este proyecto; evita agotar
+                 # el límite de conexiones simultáneas del plan gratuito de Postgres
+    kwargs={"autocommit": True, "row_factory": dict_row},  # requerido por PostgresSaver
+    check=ConnectionPool.check_connection,  # valida la conexión ANTES de
+    # entregarla (no solo después de que falla) — sin esto, confirmado con
+    # evidencia real: la primera pregunta justo después de un restart de la
+    # base todavía fallaba una vez (el pool recién descartaba la conexión
+    # muerta DESPUÉS del error), aunque el sistema sí se autoreparaba para
+    # la pregunta siguiente. Con esta verificación proactiva, el caso
+    # documentado por psycopg_pool para "reinicio del servidor de base de
+    # datos" queda cubierto sin ese primer fallo.
+)
+_pool.wait()  # espera a que al menos una conexión esté lista antes de seguir
+_checkpointer = PostgresSaver(_pool)
+_checkpointer.setup()  # crea las tablas la primera vez; no rompe si ya existen
 
 
 # Los modelos de la familia gpt-5.6 exigen reasoning_effort="none" para
@@ -200,6 +265,12 @@ def _lf_config() -> dict:
 # justo las preguntas bloqueadas (por mencionar un síntoma) son las más
 # importantes de recordar, necesitamos un registro que capture TODO lo que
 # llega, sin importar si después se bloquea o no.
+#
+# NOTA (agosto 2026): este dict sigue en RAM a propósito — ver docstring
+# del módulo, sección "Nota de alcance". La memoria de conversación
+# principal (arriba) ya persiste en Postgres; esto es un registro auxiliar
+# más chico, con impacto acotado si se pierde, documentado como limitación
+# conocida en el informe de seguridad en vez de resolverse apurado hoy.
 _historial_preguntas: dict[str, list[str]] = defaultdict(list)
 
 
@@ -238,11 +309,13 @@ def _colapsar_texto_duplicado(texto: str) -> str:
 
     return texto
 
-def _nodo_gate_entrada(estado: EstadoConversacion) -> EstadoConversacion:
+def _nodo_gate_entrada(estado: EstadoConversacion, config: dict | None = None) -> EstadoConversacion:
     historial = _obtener_preguntas_previas(estado["user_id"])
+    request_id = (config or {}).get("metadata", {}).get("request_id")
+    sufijo = f" [request_id={request_id}]" if request_id else ""
     try:
         evaluacion = evaluar_entrada(estado["pregunta"], historial=historial, config=_lf_config())
-        print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}")
+        print(f"🚦 gate_entrada · bloqueado={evaluacion.es_peligroso} · razón: {evaluacion.razon}{sufijo}")
         return {
             "bloqueado_en_entrada": evaluacion.es_peligroso,
             "razon_entrada": evaluacion.razon,
@@ -303,15 +376,25 @@ def _agregar_citas(respuesta: str, citas: list[str]) -> str:
         return respuesta
     return respuesta + "\n\n" + "\n".join(citas)
 
-def _nodo_agente(estado: EstadoConversacion) -> EstadoConversacion:
-    config = {
+def _nodo_agente(estado: EstadoConversacion, config: dict | None = None) -> EstadoConversacion:
+    # config acá es el que LangGraph inyecta desde el invoke() de nivel
+    # superior (responder(), en este mismo archivo) — trae la metadata de
+    # request_id si vino. Se combina con la config propia del sub-agente
+    # (thread_id, recursion_limit, callbacks de Langfuse) para que el
+    # sub-run del react_agent TAMBIÉN quede taggeado con el mismo
+    # request_id, no solo el nodo raíz del grafo.
+    metadata_heredada = (config or {}).get("metadata", {})
+    tags_heredados = (config or {}).get("tags", [])
+    config_agente = {
         "configurable": {"thread_id": estado["user_id"]},
         "recursion_limit": 12,  # freno contra gasto de tokens sin control (una pregunta normal usa 2-4 pasos)
+        "metadata": metadata_heredada,
+        "tags": tags_heredados,
         **_lf_config(),
     }
     try:
         resultado = _react_agent.invoke(
-            {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config
+            {"messages": [{"role": "user", "content": estado["pregunta"]}]}, config=config_agente
         )
     except GraphRecursionError:
         # El agente se pasó del límite de pasos — algo anormal (bucle, o un
@@ -435,16 +518,55 @@ class GuardaNoDisponibleError(Exception):
     petición hubiera sido evaluada y rechazada normalmente."""
 
 
-def responder(user_id: str, pregunta: str) -> str:
+def obtener_historial(user_id: str) -> list[dict]:
+    """Devuelve el historial de conversación guardado para ese user_id, en
+    formato serializable (para exponer via GET /historial en main.py).
+
+    Solo incluye mensajes 'human' y 'ai' (la pregunta de la persona y la
+    respuesta final del asistente) — se excluyen los ToolMessage internos
+    (resultados crudos de MINSAL/RAG) porque son detalle de implementación,
+    no parte de la conversación que la persona vivió."""
+    config = {"configurable": {"thread_id": user_id}}
+    estado = _react_agent.get_state(config)
+    mensajes = estado.values.get("messages", []) if estado.values else []
+
+    resultado = []
+    for m in mensajes:
+        if isinstance(m, HumanMessage):
+            tipo = "human"
+        elif isinstance(m, ToolMessage):
+            continue  # detalle interno, no se muestra en el historial visible
+        else:
+            tipo = "ai"
+        contenido = m.content if isinstance(m.content, str) else str(m.content)
+        if not contenido.strip():
+            continue  # ej. un AIMessage vacío que solo trae tool_calls
+        resultado.append({"tipo": tipo, "contenido": contenido})
+    return resultado
+
+
+def responder(user_id: str, pregunta: str, request_id: str | None = None) -> str:
     """Punto de entrada usado por la API (main.py). Corre el grafo completo:
     guarda de entrada → agente → guarda de salida.
+
+    request_id (agosto 2026): opcional, viene de main.py (ver docstring de
+    ese módulo). Se agrega como metadata y tag al invoke() del grafo — esto
+    hace que la traza de nivel superior en LangSmith quede indexada por ese
+    ID exacto, buscable directamente en la UI de LangSmith (filtro por
+    metadata) sin tener que adivinar cuál de varias preguntas del mismo
+    user_id corresponde a este turno puntual. Complementa (no reemplaza) el
+    log de consola, que también incluye este mismo request_id.
 
     El flush() se hace UNA vez acá, después de que el grafo completo terminó
     — no dentro de cada nodo — para que cubra también los casos donde el
     grafo termina temprano (bloqueado en gate_entrada, sin llegar al nodo
     'agente'). Si el flush viviera solo en el nodo del agente, esos casos
     bloqueados nunca enviarían su traza a Langfuse."""
-    resultado = _app.invoke({"user_id": user_id, "pregunta": pregunta})
+    config = {}
+    if request_id:
+        config = {"metadata": {"request_id": request_id}, "tags": [f"request_id:{request_id}"]}
+
+    resultado = _app.invoke({"user_id": user_id, "pregunta": pregunta}, config=config)
 
     if _LANGFUSE_ACTIVO and _langfuse_client:
         _langfuse_client.flush()
