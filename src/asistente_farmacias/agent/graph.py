@@ -47,6 +47,8 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import ToolMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
 from collections import defaultdict
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 from asistente_farmacias.tools.tool_minsal import (
     consultar_farmacias_de_turno,
@@ -156,13 +158,28 @@ if not DATABASE_URL:
         "Render y agrégala como DATABASE_URL=... en tu .env."
     )
 
-# from_conn_string() sin usar "with" a propósito: necesitamos que la
-# conexión viva durante TODA la vida del proceso (igual que el resto de
-# los objetos a nivel de módulo en este archivo, ej. _react_agent), no
-# solo dentro de un bloque — por eso se entra al context manager a mano
-# con __enter__() en vez de "with ... as checkpointer:".
-_checkpointer_cm = PostgresSaver.from_conn_string(DATABASE_URL)
-_checkpointer = _checkpointer_cm.__enter__()
+# Hallazgo real (agosto 2026): una CONEXIÓN ÚNICA (PostgresSaver.from_conn_string,
+# como se usaba antes acá) se rompe permanentemente si Postgres la cierra por
+# su cuenta (timeout de inactividad, límite del plan gratuito, blip de red) —
+# confirmado con evidencia real: "server closed the connection unexpectedly",
+# y cada pregunta siguiente falló con "the connection is closed", incluso
+# después de que la red se recuperó, porque nada en el código reintentaba
+# reconectar. Con un servidor de larga duración (a diferencia de un script
+# corto), esto es inaceptable — una caída momentánea de Postgres tumbaría el
+# backend hasta el próximo reinicio manual.
+#
+# Solución: un POOL de conexiones (psycopg_pool.ConnectionPool) en vez de una
+# conexión cruda — es el patrón oficial recomendado por LangGraph para uso en
+# producción. El pool verifica la salud de sus conexiones y las reemplaza
+# solo cuando una se cae, sin que el resto del sistema se entere.
+_pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    max_size=5,  # suficiente para el volumen de este proyecto; evita agotar
+                 # el límite de conexiones simultáneas del plan gratuito de Postgres
+    kwargs={"autocommit": True, "row_factory": dict_row},  # requerido por PostgresSaver
+)
+_pool.wait()  # espera a que al menos una conexión esté lista antes de seguir
+_checkpointer = PostgresSaver(_pool)
 _checkpointer.setup()  # crea las tablas la primera vez; no rompe si ya existen
 
 
