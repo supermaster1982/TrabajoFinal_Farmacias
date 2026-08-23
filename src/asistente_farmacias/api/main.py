@@ -53,8 +53,6 @@ from uuid import UUID
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Request, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -64,16 +62,24 @@ load_dotenv(override=True)
 logger = logging.getLogger("asistente-farmacias")
 
 if not os.getenv("OPENAI_API_KEY"):
-    raise RuntimeError("Falta OPENAI_API_KEY en tu .env (copia .env.example a .env y complétalo).")
+    raise RuntimeError(
+        "Falta OPENAI_API_KEY en tu .env "
+        "(copia .env.example a .env y complétalo)."
+    )
 
 # Import diferido a después de load_dotenv() / la validación de arriba,
 # para que el error de env var salga ANTES de intentar construir el agente.
-from asistente_farmacias.agent.graph import GuardaNoDisponibleError, obtener_historial, responder  # noqa: E402
+from asistente_farmacias.agent.graph import (  # noqa: E402
+    GuardaNoDisponibleError,
+    obtener_historial,
+    responder,
+)
 from asistente_farmacias.api import auth  # noqa: E402
 
 
 class ChatRequest(BaseModel):
     pregunta: str = Field(..., description="Pregunta del usuario.")
+
     user_id: str | None = Field(
         default=None,
         description=(
@@ -85,6 +91,7 @@ class ChatRequest(BaseModel):
             "por /session primero."
         ),
     )
+
     request_id: UUID | None = Field(
         default=None,
         description=(
@@ -100,10 +107,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     respuesta: str
-    user_id: str  # el user_id real usado en este turno — útil para confirmar identidad
-    # Ya no se devuelve un token renovado: la sesión dura 45 min fijos
-    # desde que se creó (ver auth.py). Cuando expira, /chat responde 401
-    # y el front debe pedir una sesión nueva.
+    user_id: str
 
 
 class SessionResponse(BaseModel):
@@ -112,7 +116,7 @@ class SessionResponse(BaseModel):
 
 
 class HistorialItem(BaseModel):
-    tipo: str  # "human" o "ai"
+    tipo: str
     contenido: str
 
 
@@ -132,14 +136,21 @@ app = FastAPI(
         "tratamientos ni dosis."
     ),
 )
-security = HTTPBearer()
 
-# --- CORS: configurable por .env, no abierto a cualquier origen -------------
-# En desarrollo apunta a tu front local. Cuando despliegues, agrega la URL
-# real de producción a CORS_ALLOWED_ORIGINS en el .env (separadas por coma),
-# sin tocar código.
-_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500")
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+security = HTTPBearer(auto_error=False)
+
+
+# --- CORS -------------------------------------------------------------------
+_cors_origins_env = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5500,http://127.0.0.1:5500",
+)
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in _cors_origins_env.split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -148,167 +159,318 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Rate limiting: ventana deslizante simple, en memoria --------------------
-# Sin librería nueva ni infraestructura extra (Redis, etc.) — apropiado para
-# este proyecto. Protege contra un cliente (o script) que golpee /chat sin
-# límite, gastando créditos de OpenAI sin control.
+
+# --- Rate limiting ----------------------------------------------------------
 RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", "20"))
-RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_WINDOW_SECONDS = int(
+    os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")
+)
+
 _rate_limit_buckets: dict[str, list] = defaultdict(list)
 
 
 def _verificar_rate_limit(client_ip: str) -> bool:
     ahora = time.time()
+
     timestamps = _rate_limit_buckets[client_ip]
-    timestamps[:] = [t for t in timestamps if ahora - t < RATE_LIMIT_WINDOW_SECONDS]
+
+    timestamps[:] = [
+        timestamp
+        for timestamp in timestamps
+        if ahora - timestamp < RATE_LIMIT_WINDOW_SECONDS
+    ]
+
     if len(timestamps) >= RATE_LIMIT_MAX:
         return False
+
     timestamps.append(ahora)
+
     return True
 
 
-# --- Idempotencia: cache en memoria, escopeado por (user_id, request_id) ----
-# Ver docstring del módulo para el razonamiento completo. TTL corto (5 min
-# por defecto): alcanza de sobra para reintentos de red reales, y evita que
-# el dict crezca sin límite en una sesión larga.
-IDEMPOTENCY_TTL_SECONDS = int(os.getenv("IDEMPOTENCY_TTL_SECONDS", "300"))
+# --- Idempotencia -----------------------------------------------------------
+IDEMPOTENCY_TTL_SECONDS = int(
+    os.getenv("IDEMPOTENCY_TTL_SECONDS", "300")
+)
+
 _idempotency_cache: dict[tuple[str, str], dict] = {}
 
 
 def _limpiar_cache_idempotencia_vencido() -> None:
-    """Limpieza perezosa (se ejecuta en cada pregunta con request_id, no
-    con un thread aparte) — mismo criterio que _verificar_rate_limit()
-    más arriba: suficiente para el volumen de este proyecto, sin agregar
-    infraestructura de limpieza en background."""
     ahora = time.time()
+
     vencidos = [
-        clave for clave, entrada in _idempotency_cache.items()
+        clave
+        for clave, entrada in _idempotency_cache.items()
         if ahora - entrada["timestamp"] > IDEMPOTENCY_TTL_SECONDS
     ]
+
     for clave in vencidos:
         del _idempotency_cache[clave]
 
 
+# ---------------------------------------------------------------------------
+# HEALTH
+# ---------------------------------------------------------------------------
+
 @app.get("/")
 def health():
-    """Liveness check."""
-    return {"status": "ok", "service": "asistente-farmacias", "stage": 0, "docs": "/docs"}
+    return {
+        "status": "ok",
+        "service": "asistente-farmacias",
+        "stage": 0,
+        "docs": "/docs",
+    }
 
+
+# ---------------------------------------------------------------------------
+# SESIÓN
+# ---------------------------------------------------------------------------
 
 @app.post("/session", response_model=SessionResponse)
 def crear_sesion():
-    """Genera una sesión anónima nueva — sin login, sin datos personales.
-    El front la llama al cargar si no tiene un token guardado, y también
-    cada vez que la persona pide un nombre nuevo ("recargar") — en ese
-    caso la conversación empieza de cero (nueva identidad = memoria nueva,
-    no se puede renombrar una sesión existente sin perder su historial)."""
-    user_id, token = auth.crear_sesion()
-    return SessionResponse(user_id=user_id, token=token)
+    """Genera una sesión anónima nueva."""
 
+    user_id, token = auth.crear_sesion()
+
+    return SessionResponse(
+        user_id=user_id,
+        token=token,
+    )
+
+
+# ---------------------------------------------------------------------------
+# HISTORIAL
+# ---------------------------------------------------------------------------
 
 @app.get("/historial", response_model=HistorialResponse)
-def historial(authorization: str | None = Header(default=None)):
-    """Devuelve el historial de conversación de la sesión actual — usado
-    por el botón 'Ver historial' del front. Requiere token de sesión
-    válido (mismo mecanismo que /chat): el user_id sale del token firmado,
-    nunca de un parámetro de la URL, para que nadie pueda leer el
-    historial de otra persona adivinando o mandando un user_id ajeno."""
+def historial(
+    authorization: str | None = Header(default=None),
+):
+    """Devuelve el historial de la sesión actual."""
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="Falta el header Authorization con un token de sesión válido (POST /session primero).",
+            detail=(
+                "Falta el header Authorization con un token de sesión válido "
+                "(POST /session primero)."
+            ),
         )
-    token_recibido = authorization.removeprefix("Bearer ").strip()
+
+    token_recibido = (
+        authorization
+        .removeprefix("Bearer ")
+        .strip()
+    )
+
     try:
         user_id = auth.verificar_sesion(token_recibido)
-    except auth.TokenInvalidoError as e:
-        raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
+
+    except auth.TokenInvalidoError as exc:
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                f"Sesión inválida o expirada: {exc}. "
+                "Llama de nuevo a POST /session."
+            ),
+        )
 
     mensajes = obtener_historial(user_id)
-    return HistorialResponse(user_id=user_id, mensajes=[HistorialItem(**m) for m in mensajes])
 
+    return HistorialResponse(
+        user_id=user_id,
+        mensajes=[
+            HistorialItem(**mensaje)
+            for mensaje in mensajes
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# CHAT
+# ---------------------------------------------------------------------------
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
     response: Response,
     http_request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ):
-    """Responde una pregunta, manteniendo memoria por sesión."""
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    """Responde una pregunta manteniendo memoria por sesión."""
+
+    client_ip = (
+        http_request.client.host
+        if http_request.client
+        else "unknown"
+    )
+
     if not _verificar_rate_limit(client_ip):
         raise HTTPException(
             status_code=429,
-            detail=f"Demasiadas solicitudes. Máximo {RATE_LIMIT_MAX} por minuto — espera un momento.",
+            detail=(
+                f"Demasiadas solicitudes. "
+                f"Máximo {RATE_LIMIT_MAX} por minuto — "
+                "espera un momento."
+            ),
         )
 
-    if authorization and authorization.startswith("Bearer "):
-        # Camino seguro: el user_id real viene del token firmado, no del
-        # body — evita que alguien mande un user_id ajeno y se cuele en
-        # la memoria de otra persona.
-        token_recibido = authorization.removeprefix("Bearer ").strip()
+    # -----------------------------------------------------------------------
+    # Identificación de la sesión
+    # -----------------------------------------------------------------------
+
+    if credentials:
+        token_recibido = credentials.credentials
+
         try:
             user_id = auth.verificar_sesion(token_recibido)
-        except auth.TokenInvalidoError as e:
-            raise HTTPException(status_code=401, detail=f"Sesión inválida o expirada: {e}. Llama de nuevo a POST /session.")
-        if request.user_id and request.user_id != user_id:
+
+        except auth.TokenInvalidoError as exc:
+            raise HTTPException(
+                status_code=401,
+                detail=(
+                    f"Sesión inválida o expirada: {exc}. "
+                    "Llama de nuevo a POST /session."
+                ),
+            )
+
+        if (
+            request.user_id
+            and request.user_id != user_id
+        ):
             raise HTTPException(
                 status_code=403,
-                detail="El user_id del body no coincide con el de tu sesión — no puedes usar el user_id de otra persona.",
+                detail=(
+                    "El user_id del body no coincide con el de tu sesión — "
+                    "no puedes usar el user_id de otra persona."
+                ),
             )
+
     elif request.user_id:
-        # Camino directo: sin token, se acepta el user_id del body tal
-        # cual — satisface el contrato POST {user_id, pregunta} pedido
-        # explícitamente, para probar la API sin pasar por /session primero.
-        # Sin verificación de firma en este camino: quien lo use así no
-        # tiene la protección de que otro "adivine" su user_id (mismo
-        # trade-off que cualquier API que acepta un ID plano en el body).
+        # Permite probar la API sin JWT.
         user_id = request.user_id
+
     else:
         raise HTTPException(
             status_code=422,
-            detail="Falta el user_id: manda 'user_id' en el body, o el header Authorization con un token de POST /session.",
+            detail=(
+                "Falta el user_id: manda 'user_id' en el body, "
+                "o el header Authorization con un token "
+                "de POST /session."
+            ),
         )
 
-    # --- Idempotencia: ¿ya procesamos esta pregunta puntual? ----------------
-    # Escopeado por (user_id, request_id) — nunca solo request_id, para que
-    # nadie pueda recibir por accidente la respuesta cacheada de otra
-    # persona. Si no viene request_id (cliente viejo, o alguien probando la
-    # API a mano), se procesa siempre sin cachear — comportamiento idéntico
-    # al de antes de este cambio.
-    clave_idempotencia = (user_id, str(request.request_id)) if request.request_id else None
+    # -----------------------------------------------------------------------
+    # Idempotencia
+    # -----------------------------------------------------------------------
+
+    clave_idempotencia = (
+        (user_id, str(request.request_id))
+        if request.request_id
+        else None
+    )
+
     if clave_idempotencia:
         _limpiar_cache_idempotencia_vencido()
-        entrada_cacheada = _idempotency_cache.get(clave_idempotencia)
+
+        entrada_cacheada = _idempotency_cache.get(
+            clave_idempotencia
+        )
+
         if entrada_cacheada:
-            print(f"♻️  request_id {request.request_id} repetido para {user_id} — devolviendo respuesta cacheada, sin reprocesar")
-            return ChatResponse(**entrada_cacheada["response"])
+            print(
+                f"♻️ request_id {request.request_id} "
+                f"repetido para {user_id} — "
+                "devolviendo respuesta cacheada."
+            )
+
+            return ChatResponse(
+                **entrada_cacheada["response"]
+            )
+
+    # -----------------------------------------------------------------------
+    # Procesamiento
+    # -----------------------------------------------------------------------
 
     inicio = datetime.now(timezone.utc)
-    request_id_str = str(request.request_id) if request.request_id else None
-    sufijo_log = f" [request_id={request_id_str}]" if request_id_str else ""
-    print(f"🕐 [{inicio.isoformat()}] Pregunta de {user_id}: {request.pregunta}{sufijo_log}")
+
+    request_id_str = (
+        str(request.request_id)
+        if request.request_id
+        else None
+    )
+
+    sufijo_log = (
+        f" [request_id={request_id_str}]"
+        if request_id_str
+        else ""
+    )
+
+    print(
+        f"🕐 [{inicio.isoformat()}] "
+        f"Pregunta de {user_id}: "
+        f"{request.pregunta}"
+        f"{sufijo_log}"
+    )
+
     try:
-        respuesta = responder(user_id, request.pregunta, request_id=request_id_str)
-    except GuardaNoDisponibleError as e:
-        logger.warning(f"Guarda no disponible: {e}")
-        raise HTTPException(status_code=503, detail=str(e))
+        respuesta = responder(
+            user_id,
+            request.pregunta,
+            request_id=request_id_str,
+        )
+
+    except GuardaNoDisponibleError as exc:
+        logger.warning(
+            "Guarda no disponible: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+
     except Exception:
-        logger.exception("Fallo al responder la pregunta")
-        raise HTTPException(status_code=502, detail="Fallo interno; revisa los logs del servidor.")
+        logger.exception(
+            "Fallo al responder la pregunta"
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Fallo interno; revisa los logs del servidor."
+            ),
+        )
+
     fin = datetime.now(timezone.utc)
-    print(f"🕐 [{fin.isoformat()}] Respondido (tardó {(fin - inicio).total_seconds():.1f}s){sufijo_log}")
+
+    print(
+        f"🕐 [{fin.isoformat()}] "
+        f"Respondido "
+        f"(tardó {(fin - inicio).total_seconds():.1f}s)"
+        f"{sufijo_log}"
+    )
+
+    # -----------------------------------------------------------------------
+    # Headers de trazabilidad
+    # -----------------------------------------------------------------------
 
     response.headers["X-Timestamp-UTC"] = fin.isoformat()
+
     if request_id_str:
         response.headers["X-Request-ID"] = request_id_str
 
-    respuesta_final = ChatResponse(user_id=user_id, respuesta=respuesta)
+    respuesta_final = ChatResponse(
+        user_id=user_id,
+        respuesta=respuesta,
+    )
 
-    # Guardar en cache DESPUÉS de responder con éxito — si falló (excepción
-    # de arriba), no se cachea nada, así un reintento real del front vuelve
-    # a intentar de cero en vez de quedar pegado a un error viejo.
+    # -----------------------------------------------------------------------
+    # Guardar respuesta en cache de idempotencia
+    # -----------------------------------------------------------------------
+
     if clave_idempotencia:
         _idempotency_cache[clave_idempotencia] = {
             "timestamp": time.time(),
@@ -318,7 +480,15 @@ async def chat(
     return respuesta_final
 
 
+# ---------------------------------------------------------------------------
+# EJECUCIÓN LOCAL
+# ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+    )
