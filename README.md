@@ -99,7 +99,7 @@ Si algo no funciona, revisa la sección "Correr el servidor" / "Correr el front"
 | Resiliencia ante caída/retiro de modelo — cadenas independientes para `GEN_MODEL` y `GUARD_MODEL` | ✅ |
 | **Resiliencia ante caída del servidor MCP** — validada end-to-end con el MCP apagado; el resto del sistema sigue respondiendo | ✅ |
 | Observabilidad (LangSmith activo; Langfuse implementado y disponible, no configurado actualmente) | ✅ |
-| Evaluación formal en LangSmith (22 preguntas, 6 métricas) + comparación factorial 3×3 de modelos | ✅ |
+| Evaluación formal en LangSmith (26 preguntas, 6 métricas) + comparación factorial 3×3 de modelos | ✅ |
 | Front conversacional (`front/index.html`) — muestra el nombre de sesión, botón para generar uno nuevo | ✅ — servir con `python3 -m http.server` (no abrir con doble clic, ver sección "Correr el front") |
 | Informe de seguridad/privacidad/calidad + matriz de riesgos (28 ítems, política de retención definida, 7 capas de seguridad completas) | ✅ |
 | Despliegue en la nube (backend + front) | ✅ |
@@ -251,7 +251,7 @@ Observabilidad opcional y degradante: sin claves de Langfuse/LangSmith en el `.e
 - **Guardas extendidas a diagnóstico implícito y alergia/contraindicación**.
 - **Filtro de similitud mínima de embeddings**: calibrado en 0.4 (Kaggle) y 0.54 (Chile), con evidencia real de falsos positivos descartados.
 - **Límite de iteraciones del agente** (`recursion_limit=12`).
-- **Dataset de evaluación ampliado a 22 preguntas** (9 informativas + 13 adversarias), con sincronización automática (agregar y actualizar) contra `eval/*.md`.
+- **Dataset de evaluación ampliado a 26 preguntas** (10 informativas + 16 adversarias), incluyendo casos del vademécum chileno (dosis e interacción personalizada) y del turno nocturno. Sincronización de `eval_langsmith.py` completa: agrega preguntas nuevas, actualiza `tipo`/`esperado` de preguntas existentes, y **borra** las que ya no están en `eval/*.md` (evita que reformular el texto de una pregunta deje una versión vieja huérfana en LangSmith).
 - **Capa 1 completa: CORS restringido + rate limiting** — evidencia en `docs/evidencia-rate-limiting.md`.
 - **Capas 6 y 7 completas: proceso de revisión humana + términos y condiciones**.
 - **Capa 2 completa: sesión anónima firmada (JWT)** — con esto, las 7 capas de seguridad mapeadas quedan completas.
@@ -392,7 +392,7 @@ Si tienes preguntas del vademécum chileno en el dataset, el servidor MCP debe e
 
 Revisar en [smith.langchain.com](https://smith.langchain.com) → Datasets & Experiments → `asistente-farmacias-eval`. Por defecto, cada cuenta de LangSmith crea una organización personal que solo tú puedes ver — si el equipo necesita ver los mismos resultados, hay que invitarlos como miembros a tu organización/workspace (el plan gratuito incluye 1 solo asiento; agregar gente puede requerir plan pago). Alternativa sin costo: compartir el link público de una traza puntual (botón "Share" dentro de la traza en LangSmith), o exportar capturas de los resultados clave.
 
-Las preguntas de prueba (22 en total: 9 informativas + 13 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` — para agregar una pregunta nueva, o cambiar el `tipo`/`esperado` de una existente, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente contra LangSmith (agrega lo nuevo y actualiza lo que cambió), sin duplicar lo que ya estaba subido.
+Las preguntas de prueba (26 en total: 10 informativas + 16 adversarias) viven en `eval/preguntas_respondibles.md` y `eval/preguntas_no_respondibles.md` — para agregar una pregunta nueva, cambiar el `tipo`/`esperado` de una existente, o quitar una, solo se edita el `.md`; `eval_langsmith.py` sincroniza automáticamente contra LangSmith (agrega lo nuevo, actualiza lo que cambió, y borra lo que ya no está en el `.md`), sin duplicar lo que ya estaba subido.
 
 **Elección de `GEN_MODEL`/`GUARD_MODEL`**: para comparar modelos candidatos, cambia el valor de `GEN_MODEL` y/o `GUARD_MODEL` directamente en tu `.env` y vuelve a correr `eval_langsmith.py` — **no funciona pasarlas como variable de entorno antes del comando** (`GUARD_MODEL=gpt-5.6-luna poetry run ...`), porque `load_dotenv(override=True)` hace que el valor del `.env` siempre gane sobre lo que hayas puesto en la terminal, si esa variable ya está definida en el archivo:
 ```bash
