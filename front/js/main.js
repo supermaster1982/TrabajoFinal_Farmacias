@@ -1,4 +1,5 @@
 (function () {
+
   const { config } = window.App;
   const { dom } = window.App;
   const { api } = window.App;
@@ -120,10 +121,20 @@
         dom.setUserId(data.user_id);
       }
       dom.removeTypingIndicator();
-      const wasBlocked = (data.respuesta || "").includes(config.GUARDRAIL_MARKER);
-      dom.addMessage("assistant", data.respuesta, { blocked: wasBlocked });
+
+      const wasBlocked = (data.respuesta || "")
+        .includes(config.GUARDRAIL_MARKER);
+
+      dom.addMessage(
+        "assistant",
+        data.respuesta,
+        { blocked: wasBlocked }
+      );
+
     } catch (error) {
+
       dom.removeTypingIndicator();
+
       if (error.status === 401) {
         // Sesión expirada (45 min fijos, sin renovación) — se limpian
         // token + user_id; la próxima pregunta crea una sesión (y un
@@ -131,51 +142,83 @@
         clearSession();
         dom.addMessage(
           "error",
-          "⚠️ Tu sesión expiró. Envía la pregunta de nuevo — se creará una sesión nueva automáticamente."
+          "⚠️ No fue posible renovar la sesión. Intenta nuevamente."
         );
+
       } else if (error.status === 503) {
+
         dom.addMessage(
           "error",
           "⚠️ El control de seguridad no está disponible en este momento (falla del proveedor del modelo). " +
           "Por seguridad, no se procesó tu pregunta. Intenta de nuevo en un momento."
         );
+
       } else if (error.status) {
-        dom.addMessage("error", `El servidor respondió con un error (${error.status}). Revisa los logs de la terminal.`);
+
+        dom.addMessage(
+          "error",
+          `El servidor respondió con un error (${error.status}). Revisa los logs de la terminal.`
+        );
+
       } else {
+
         dom.addMessage(
           "error",
           `No se pudo conectar con ${backendUrlInput.value}. ¿Está corriendo el servidor? ¿La URL de arriba es correcta?`
         );
       }
+
     } finally {
+
       dom.setSending(false);
+
     }
   }
 
   function autoGrowTextarea() {
     textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+
+    textarea.style.height =
+      Math.min(
+        textarea.scrollHeight,
+        120
+      ) + "px";
   }
 
   // --- Eventos ---
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+
     const pregunta = textarea.value.trim();
+
     if (!pregunta) return;
+
     textarea.value = "";
+
     autoGrowTextarea();
+
     handleAsk(pregunta);
   });
 
   textarea.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+
       event.preventDefault();
+
       form.requestSubmit();
+
     }
   });
 
-  textarea.addEventListener("input", autoGrowTextarea);
+  textarea.addEventListener(
+    "input",
+    autoGrowTextarea
+  );
 
   // Solo los chips de preguntas sugeridas (tienen data-q). El botón de
   // "generar otro nombre" también usa la clase .chip por estilo, pero
@@ -224,6 +267,7 @@
   mcpUrlInput.addEventListener("change", refreshConnectionStatus);
 
   // --- Arranque ---
+
   refreshConnectionStatus();
 
   // Si no hay sesión guardada (primera visita, o se limpió por expirar),

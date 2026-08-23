@@ -4,7 +4,7 @@ Contrato (pedido explícito de la rúbrica): POST /chat {"user_id": "...", "preg
           -> {"respuesta": "...", "user_id": "..."}
 
 Dos caminos para el user_id, según si viene el header Authorization:
-  - CON token (de POST /session): el user_id real es el firmado dentro del
+  - CON token (ude POST /session): el user_id real es el firmado dentro del
     token, no el del body — si además viene user_id en el body, debe
     coincidir (403 si no). Evita que alguien use el user_id de otra persona.
   - SIN token: se usa el user_id del body tal cual, sin verificación de
@@ -51,7 +51,10 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Request, Header
+from fastapi import FastAPI, HTTPException, Response, Request, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -129,6 +132,7 @@ app = FastAPI(
         "tratamientos ni dosis."
     ),
 )
+security = HTTPBearer()
 
 # --- CORS: configurable por .env, no abierto a cualquier origen -------------
 # En desarrollo apunta a tu front local. Cuando despliegues, agrega la URL
@@ -229,7 +233,7 @@ async def chat(
     request: ChatRequest,
     response: Response,
     http_request: Request,
-    authorization: str | None = Header(default=None),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Responde una pregunta, manteniendo memoria por sesión."""
     client_ip = http_request.client.host if http_request.client else "unknown"
