@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+
+COPY requirements-mcp.txt ./
+
+RUN pip install --no-cache-dir -r requirements-mcp.txt
+
+COPY src/ ./src/
+COPY servidor_vademecum_chile.py ./
+
+CMD ["python", "servidor_vademecum_chile.py"]
