@@ -49,7 +49,6 @@ mcp = FastMCP(
         "contraindicaciones, efectos adversos. NUNCA para decidir una "
         "dosis para una persona ni indicar tratamiento."
     ),
-    port=int(os.environ.get("MCP_PORT_VADEMECUM_CHILE", "8803")),
 )
 
 @mcp.custom_route("/health", methods=["GET"])
@@ -102,14 +101,23 @@ def buscar_ficha_medicamento_chile(medicamento: str) -> str:
         )
     return "\n\n".join(bloques)
 
-app = mcp.streamable_http_app()
+
 
 if __name__ == "__main__":
-    print("Iniciando servidor MCP VademecumChile…")
+    port = int(
+        os.getenv(
+            "PORT",
+            os.getenv("MCP_PORT_VADEMECUM_CHILE", "8803"),
+        )
+    )
+
+    print(f"Iniciando servidor MCP VademecumChile en puerto {port}…")
+
     try:
-        mcp.run(transport="streamable-http")
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=port,
+        )
     except KeyboardInterrupt:
-        # Ctrl+C es la forma normal de detener este servidor — sin este
-        # except, Python muestra un traceback largo del apagado interno
-        # de anyio/asyncio que no aporta nada (no es un error real).
         print("\nServidor MCP VademecumChile detenido.")
